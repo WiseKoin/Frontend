@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -42,7 +43,11 @@ val sampleTransactions = listOf(
 )
 
 @Composable
-fun WiseKoinTopBar() {
+fun WiseKoinTopBar(
+    onNotificationClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    onBackClick: (() -> Unit)? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -50,34 +55,51 @@ fun WiseKoinTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryRed),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "User Avatar",
-                    tint = Color.White
-                )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextDark
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "Welcome back,",
-                    fontSize = 12.sp,
-                    color = TextLight,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Alex Johnson",
-                    fontSize = 18.sp,
-                    color = TextDark,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clip(CircleShape).clickable { onProfileClick() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryRed),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = "User Avatar",
+                        tint = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Welcome back,",
+                        fontSize = 12.sp,
+                        color = TextLight,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Alex Johnson",
+                        fontSize = 18.sp,
+                        color = TextDark,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -87,7 +109,7 @@ fun WiseKoinTopBar() {
                 .neomorphic(cornerRadius = 22.dp)
                 .clip(CircleShape)
                 .background(CandyBg)
-                .clickable { },
+                .clickable { onNotificationClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -415,4 +437,15 @@ fun WiseKoinBottomNavigation(
             )
         }
     }
+}
+
+@Composable
+fun WiseKoinBottomBar(
+    currentRoute: String,
+    onTabClick: (String) -> Unit
+) {
+    WiseKoinBottomNavigation(
+        currentRoute = currentRoute,
+        onNavigate = onTabClick
+    )
 }

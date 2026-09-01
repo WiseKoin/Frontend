@@ -5,6 +5,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,8 +13,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wisekoin.ui.components.WiseKoinBottomNavigation
 import com.wisekoin.ui.screens.*
+import com.wisekoin.viewmodel.AuthViewModel
 
 sealed class Screen(val route: String) {
+    object Login : Screen("login")
+    object Profile : Screen("profile")
     object Overview : Screen("overview")
     object Expenses : Screen("expenses")
     object Savings : Screen("savings")
@@ -30,6 +34,7 @@ fun WiseKoinApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
+    val authViewModel: AuthViewModel = viewModel()
 
     val showBottomBar = currentRoute in listOf(
         Screen.Overview.route,
@@ -56,6 +61,7 @@ fun WiseKoinApp() {
     ) { padding ->
         WiseKoinNavGraph(
             navController = navController,
+            authViewModel = authViewModel,
             modifier = Modifier.padding(padding)
         )
     }
@@ -64,6 +70,7 @@ fun WiseKoinApp() {
 @Composable
 fun WiseKoinNavGraph(
     navController: NavHostController,
+    authViewModel: AuthViewModel,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -71,10 +78,42 @@ fun WiseKoinNavGraph(
         startDestination = Screen.Overview.route,
         modifier = modifier
     ) {
+        composable(Screen.Login.route) {
+            LoginScreen(
+                viewModel = authViewModel,
+                onLoginSuccess = {
+                    navController.navigate(Screen.Overview.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToSignUp = { /* Toast / Navigate */ },
+                onForgotPasswordClick = { /* Toast / Navigate */ }
+            )
+        }
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                viewModel = authViewModel,
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onTabSelected = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
         composable(Screen.Overview.route) {
             OverviewScreen(
                 onNavigateToAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
-                onSeeAllTransactions = { navController.navigate(Screen.Expenses.route) }
+                onSeeAllTransactions = { navController.navigate(Screen.Expenses.route) },
+                onProfileClick = { navController.navigate(Screen.Profile.route) }
             )
         }
         composable(Screen.Expenses.route) {

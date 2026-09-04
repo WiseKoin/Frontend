@@ -4,14 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.local.TokenManager
 import com.wisekoin.data.model.LoginRequest
+import com.wisekoin.data.model.RegisterRequest
+import com.wisekoin.data.model.UpdateProfileRequest
+import com.wisekoin.data.model.UserResponseDto
 import com.wisekoin.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-import com.wisekoin.data.model.RegisterRequest
 
 data class AuthUiState(
     val email: String = "",
@@ -21,6 +22,7 @@ data class AuthUiState(
     val isPro: Boolean = false,
     val level: Int = 1,
     val isLoggedIn: Boolean = false,
+    val currentUser: UserResponseDto? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -34,9 +36,12 @@ class AuthViewModel : ViewModel() {
     fun setTokenManager(manager: TokenManager) {
         this.tokenManager = manager
         if (manager.hasToken()) {
-            _uiState.update { it.copy(isLoggedIn = true, name = if (it.name == "Guest") "User" else it.name) }
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoggedIn = true) }
+                fetchUser()
+            }
         } else {
-            _uiState.update { it.copy(isLoggedIn = false, name = "Guest") }
+            _uiState.update { it.copy(isLoggedIn = false, name = "Guest", currentUser = null) }
         }
     }
 
@@ -79,8 +84,7 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.authApi.login(LoginRequest(email, password))
                 tokenManager?.saveToken(response.accessToken)
-                val displayName = email.substringBefore("@").replaceFirstChar { it.uppercase() }
-                _uiState.update { it.copy(isLoggedIn = true, isLoading = false, name = displayName) }
+                fetchUser()
                 onSuccess()
             } catch (e: Exception) {
                 val errorMsg = e.localizedMessage ?: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin."
@@ -115,10 +119,10 @@ class AuthViewModel : ViewModel() {
                     it.copy(
                         isLoggedIn = true,
                         isLoading = false,
-                        name = username,
                         email = email
                     )
                 }
+                fetchUser()
                 onSuccess()
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage) }
@@ -152,5 +156,62 @@ class AuthViewModel : ViewModel() {
 
     fun updateAvatar(newUrl: String) {
         _uiState.update { it.copy(avatarUrl = newUrl) }
+    }
+
+    fun updateProfile(
+        username: String,
+        phone: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val currentEmail = _uiState.value.email
+        if (currentEmail.isBlank()) {
+            onError("No email found. Please log in again.")
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.userApi.updateProfile(
+                    UpdateProfileRequest(
+                        username = username,
+                        email = currentEmail,
+                        phone = phone
+                    )
+                )
+                _uiState.update {
+                    it.copy(
+                        currentUser = response,
+                        name = response.username,
+                        isLoading = false
+                    )
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                val errorMsg = e.localizedMessage ?: "Failed to update profile"
+                _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                onError(errorMsg)
+            }
+        }
+    }
+
+    private fun fetchUser() {
+        viewModelScope.launch {
+            try {
+                val user = RetrofitClient.userApi.getCurrentUser()
+                _uiState.update {
+                    it.copy(
+                        currentUser = user,
+                        name = if (user.username.isNotBlank()) user.username else user.email.substringBefore("@").replaceFirstChar { it.uppercase() },
+                        email = user.email
+                    )
+                }
+            } catch (e: Exception) {
+                val fallback = _uiState.value.email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                _uiState.update { it.copy(name = fallback) }
+            }
+        }
     }
 }

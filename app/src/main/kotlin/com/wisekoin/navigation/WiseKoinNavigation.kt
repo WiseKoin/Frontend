@@ -22,6 +22,7 @@ import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 
 import androidx.compose.runtime.collectAsState
+import com.wisekoin.viewmodel.CategoryViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -97,8 +98,9 @@ fun WiseKoinNavGraph(
     modifier: Modifier = Modifier
 ) {
     // Shared ViewModel cho luồng Scan và Confirm
-    val receiptViewModel: ReceiptViewModel = viewModel()
     val authUiState by authViewModel.uiState.collectAsState()
+    val categoryViewModel: CategoryViewModel = viewModel()
+    val receiptViewModel: ReceiptViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -205,7 +207,16 @@ fun WiseKoinNavGraph(
                 onClose = { navController.popBackStack() },
                 onVoiceAdd = { navController.navigate(Screen.VoiceRecording.route) },
                 onScanReceipt = { navController.navigate(Screen.ScanReceipt.route) },
-                authViewModel = authViewModel
+                onConfirmSuccess = {
+                    // Chuyển về màn hình Tổng quan sau khi lưu thành công
+                    navController.navigate(Screen.Overview.route) {
+                        popUpTo(Screen.Overview.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                authViewModel = authViewModel,
+                categoryViewModel = categoryViewModel,
+                receiptViewModel = receiptViewModel
             )
         }
 

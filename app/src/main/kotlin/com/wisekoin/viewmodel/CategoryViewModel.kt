@@ -58,7 +58,7 @@ class CategoryViewModel : ViewModel() {
         onError: (String) -> Unit
     ) {
         if (!isLoggedIn) {
-            onError("Người dùng chưa đăng nhập. Không được phép tạo danh mục mới.")
+            onError("Please log in to create new category.")
             return
         }
 
@@ -80,7 +80,7 @@ class CategoryViewModel : ViewModel() {
                 loadCategories(type, isLoggedIn)
                 onSuccess()
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Tạo danh mục thất bại."
+                val errorMsg = e.localizedMessage ?: "Create a new category failed."
                 _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
                 onError(errorMsg)
             }

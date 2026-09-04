@@ -35,6 +35,7 @@ import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
+import com.wisekoin.viewmodel.ReceiptViewModel
 
 // -------------------------------------------------------------
 // 1. Màn hình chính (Scaffold & State Management)
@@ -42,11 +43,12 @@ import com.wisekoin.viewmodel.CategoryViewModel
 @Composable
 fun AddTransactionScreen(
     onClose: () -> Unit,
-    onVoiceAdd: () -> Unit = {},
-    onScanReceipt: () -> Unit = {},
-    onSave: () -> Unit = {},
-    authViewModel: AuthViewModel = viewModel(),
-    categoryViewModel: CategoryViewModel = viewModel()
+    onVoiceAdd: () -> Unit,
+    onScanReceipt: () -> Unit,
+    onConfirmSuccess: () -> Unit,
+    authViewModel: AuthViewModel,
+    categoryViewModel: CategoryViewModel,
+    receiptViewModel: ReceiptViewModel
 ) {
     var selectedType by remember { mutableStateOf("Expense") }
     var amount by remember { mutableStateOf("1,250,000") }
@@ -63,41 +65,41 @@ fun AddTransactionScreen(
         }
     }
 
-    Scaffold(
-        containerColor = CandyBg
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            AppTopBar()
-            AmountSection(selectedType, { selectedType = it }, amount, { amount = it }, onClose)
-            MiddleDynamicSection(
-                type = selectedType,
-                selectedCategory = category,
-                onCategorySelect = { category = it },
-                isLoggedIn = isLoggedIn,
-                categoryUiState = categoryUiState,
-                onCreateCategory = { name, icon ->
-                    categoryViewModel.createCategory(
-                        name = name,
-                        type = selectedType,
-                        icon = icon,
-                        isLoggedIn = isLoggedIn,
-                        onSuccess = {},
-                        onError = {}
-                    )
-                }
-            )
-            CommonTransactionFields(note) { note = it }
-            QuickToolActions(onVoiceAdd, onScanReceipt)
-            SaveTransactionButton(onSave)
-            Spacer(Modifier.height(8.dp))
-        }
+    Column(
+        modifier = Modifier
+            .background(color = CandyBg)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        AppTopBar()
+        AmountSection(selectedType, { selectedType = it }, amount, { amount = it }, onClose)
+        MiddleDynamicSection(
+            type = selectedType,
+            selectedCategory = category,
+            onCategorySelect = { category = it },
+            isLoggedIn = isLoggedIn,
+            categoryUiState = categoryUiState,
+            onCreateCategory = { name, icon ->
+                categoryViewModel.createCategory(
+                    name = name,
+                    type = selectedType,
+                    icon = icon,
+                    isLoggedIn = isLoggedIn,
+                    onSuccess = {},
+                    onError = {}
+                )
+            }
+        )
+        CommonTransactionFields(note) { note = it }
+        QuickToolActions(onVoiceAdd, onScanReceipt)
+        SaveTransactionButton(
+            onClick = {
+                receiptViewModel.confirmAndSave(onSuccess = onConfirmSuccess)
+            }
+        )
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -692,7 +694,7 @@ private fun SaveTransactionButton(onClick: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CheckCircle, null, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Save Transaction", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("Save Transaction", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
         }
     }
 }

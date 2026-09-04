@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpCenter
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -33,190 +34,175 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.wisekoin.ui.components.WiseKoinBottomBar
-import com.wisekoin.ui.components.WiseKoinTopBar
-import com.wisekoin.ui.theme.WiseKoinTheme
-import com.wisekoin.ui.theme.neomorphicCardShadow
+import com.wisekoin.navigation.Screen
+import com.wisekoin.ui.components.AppTopBar
+import com.wisekoin.ui.components.WiseKoinBottomNavigation
+import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
-    onBackClick: () -> Unit = {},
     onLogoutClick: () -> Unit,
-    onTabSelected: (String) -> Unit
+    onLoginClick: () -> Unit = {},
+    onTabSelected: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            WiseKoinTopBar(
-                onNotificationClick = {
-                    Toast.makeText(context, "Mở thông báo", Toast.LENGTH_SHORT).show()
-                },
-                onProfileClick = { /* Already on profile */ },
-                onBackClick = onBackClick
-            )
-        },
-        bottomBar = {
-            WiseKoinBottomBar(
-                currentRoute = "savings",
-                onTabClick = onTabSelected
-            )
-        },
-        containerColor = WiseKoinTheme.colors.Background
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(20.dp))
+    Column(
+        modifier = Modifier
+            .background(CandyBg)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(all = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AppTopBar()
 
-            // 1. Avatar 3D with Edit Button
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 1. Avatar 3D with Edit Button
+        Box(
+            modifier = Modifier.size(136.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Avatar image container
             Box(
-                modifier = Modifier.size(136.dp),
+                modifier = Modifier
+                    .size(128.dp)
+                    .clip(CircleShape)
+                    .border(4.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                    .neomorphicCardShadow(CircleShape, elevation = 8.dp)
+                    .background(Color.White)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(uiState.avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Edit floating button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(WiseKoinTheme.colors.PrimaryContainer)
+                    .border(2.dp, Color.White.copy(alpha = 0.8f), CircleShape)
+                    .neomorphicCardShadow(CircleShape, elevation = 4.dp)
+                    .clickable {
+                        Toast.makeText(context, "Chỉnh sửa ảnh đại diện", Toast.LENGTH_SHORT).show()
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                // Avatar image container
-                Box(
-                    modifier = Modifier
-                        .size(128.dp)
-                        .clip(CircleShape)
-                        .border(4.dp, Color.White.copy(alpha = 0.6f), CircleShape)
-                        .neomorphicCardShadow(CircleShape, elevation = 8.dp)
-                        .background(Color.White)
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(uiState.avatarUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                // Edit floating button
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(WiseKoinTheme.colors.PrimaryContainer)
-                        .border(2.dp, Color.White.copy(alpha = 0.8f), CircleShape)
-                        .neomorphicCardShadow(CircleShape, elevation = 4.dp)
-                        .clickable {
-                            Toast.makeText(context, "Chỉnh sửa ảnh đại diện", Toast.LENGTH_SHORT).show()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Avatar",
-                        tint = WiseKoinTheme.colors.OnPrimaryContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Avatar",
+                    tint = WiseKoinTheme.colors.OnPrimaryContainer,
+                    modifier = Modifier.size(18.dp)
+                )
             }
+        }
 
-            Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. User Info
+        // 2. User Info
+        Text(
+            text = uiState.name,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Black,
+            color = WiseKoinTheme.colors.OnSurface,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = uiState.email,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = WiseKoinTheme.colors.OnSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // 3. Badges (Pro Member & Level 12)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Badge 1: Pro Member
+            BadgeCard(
+                modifier = Modifier.weight(1f),
+                title = "Pro Member",
+                icon = Icons.Default.WorkspacePremium,
+                iconTint = WiseKoinTheme.colors.Primary,
+                onClick = { Toast.makeText(context, "Gói thành viên Pro", Toast.LENGTH_SHORT).show() }
+            )
+
+            // Badge 2: Level 12
+            BadgeCard(
+                modifier = Modifier.weight(1f),
+                title = "Level 12",
+                icon = Icons.Default.Star,
+                iconTint = Color(0xFFEAB308),
+                onClick = { Toast.makeText(context, "Cấp độ tiết kiệm: Level 12", Toast.LENGTH_SHORT).show() }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 4. Preferences Section
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+        ) {
             Text(
-                text = uiState.name,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
+                text = "Preferences",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
                 color = WiseKoinTheme.colors.OnSurface,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = uiState.email,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = WiseKoinTheme.colors.OnSurfaceVariant,
-                textAlign = TextAlign.Center
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            PreferenceItem(
+                title = "Account Settings",
+                icon = Icons.Default.ManageAccounts,
+                iconTint = WiseKoinTheme.colors.Primary,
+                onClick = { Toast.makeText(context, "Cài đặt tài khoản", Toast.LENGTH_SHORT).show() }
+            )
 
-            // 3. Badges (Pro Member & Level 12)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Badge 1: Pro Member
-                BadgeCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Pro Member",
-                    icon = Icons.Default.WorkspacePremium,
-                    iconTint = WiseKoinTheme.colors.Primary,
-                    onClick = { Toast.makeText(context, "Gói thành viên Pro", Toast.LENGTH_SHORT).show() }
-                )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Badge 2: Level 12
-                BadgeCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Level 12",
-                    icon = Icons.Default.Star,
-                    iconTint = Color(0xFFEAB308),
-                    onClick = { Toast.makeText(context, "Cấp độ tiết kiệm: Level 12", Toast.LENGTH_SHORT).show() }
-                )
-            }
+            PreferenceItem(
+                title = "Notifications",
+                icon = Icons.Default.NotificationsActive,
+                iconTint = Color(0xFF666000),
+                onClick = { Toast.makeText(context, "Cài đặt thông báo", Toast.LENGTH_SHORT).show() }
+            )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Preferences Section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                Text(
-                    text = "Preferences",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = WiseKoinTheme.colors.OnSurface,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
-                )
+            PreferenceItem(
+                title = "Help Center",
+                icon = Icons.Default.HelpCenter,
+                iconTint = WiseKoinTheme.colors.Outline,
+                onClick = { Toast.makeText(context, "Trung tâm trợ giúp", Toast.LENGTH_SHORT).show() }
+            )
+        }
 
-                PreferenceItem(
-                    title = "Account Settings",
-                    icon = Icons.Default.ManageAccounts,
-                    iconTint = WiseKoinTheme.colors.Primary,
-                    onClick = { Toast.makeText(context, "Cài đặt tài khoản", Toast.LENGTH_SHORT).show() }
-                )
+        Spacer(modifier = Modifier.height(36.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PreferenceItem(
-                    title = "Notifications",
-                    icon = Icons.Default.NotificationsActive,
-                    iconTint = Color(0xFF666000),
-                    onClick = { Toast.makeText(context, "Cài đặt thông báo", Toast.LENGTH_SHORT).show() }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PreferenceItem(
-                    title = "Help Center",
-                    icon = Icons.Default.HelpCenter,
-                    iconTint = WiseKoinTheme.colors.Outline,
-                    onClick = { Toast.makeText(context, "Trung tâm trợ giúp", Toast.LENGTH_SHORT).show() }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            // 5. Log Out Button
+        // 5. Action Button (Log In / Log Out)
+        if (uiState.isLoggedIn) {
             Button(
                 onClick = onLogoutClick,
                 modifier = Modifier
@@ -227,7 +213,7 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = WiseKoinTheme.colors.Surface,
-                    contentColor = WiseKoinTheme.colors.Primary
+                    contentColor = PrimaryRed
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
             ) {
@@ -238,7 +224,7 @@ fun ProfileScreen(
                     Icon(
                         imageVector = Icons.Default.Logout,
                         contentDescription = "Log Out",
-                        tint = WiseKoinTheme.colors.Primary,
+                        tint = PrimaryRed,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -246,7 +232,41 @@ fun ProfileScreen(
                         text = "Log Out",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = WiseKoinTheme.colors.Primary
+                        color = PrimaryRed
+                    )
+                }
+            }
+        } else {
+            Button(
+                onClick = onLoginClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 24.dp)
+                    .border(2.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryRed,
+                    contentColor = Color.White
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Login,
+                        contentDescription = "Log In",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Log In",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }

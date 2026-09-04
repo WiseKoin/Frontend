@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.ReceiptViewModel
 
@@ -43,257 +44,167 @@ fun ConfirmReceiptScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        containerColor = CandyBg
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 1. Top Bar: Logo + Notification + Avatar
-            ConfirmReceiptTopBar()
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 2. Tiêu đề màn hình
-            Text(
-                text = "Confirm Receipt",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = BrandGreenDark,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Review the extracted details before saving.",
-                fontSize = 14.sp,
-                color = TextLight,
-                textAlign = TextAlign.Center
-            )
-
-            if (uiState.isLoading) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = BrandGreenDark,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Analyzing receipt with AI...",
-                        fontSize = 13.sp,
-                        color = BrandGreenDark,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            } else if (uiState.errorMessage != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Error: ${uiState.errorMessage}",
-                    fontSize = 13.sp,
-                    color = Color.Red,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 3. Khung hiển thị ảnh hóa đơn & Nút Retake
-            ReceiptImageSection(
-                imageUri = uiState.imageUri,
-                onRetake = onRetakeClick
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 4. Card Store Name (Inline Editing)
-            StoreNameCard(
-                storeName = uiState.storeName,
-                onValueChange = { viewModel.updateStoreName(it) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 5. Hàng 2 cột: Date & Category
-            DateAndCategoryRow(
-                dateText = uiState.date,
-                currentCategory = uiState.category,
-                onCategoryChange = { viewModel.updateCategory(it) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 6. Card Total Amount (Inline Editing)
-            TotalAmountCard(
-                amount = uiState.amount,
-                onValueChange = { viewModel.updateAmount(it) }
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // 7. Nút viền nét đứt: Scan another receipt
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .dashedBorder(cornerRadius = 26.dp, color = DashedBorderColor)
-                    .clip(RoundedCornerShape(26.dp))
-                    .clickable { onScanAnotherClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircleOutline,
-                        contentDescription = null,
-                        tint = BrandGreenDark,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Scan another receipt",
-                        color = BrandGreenDark,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 8. Nút chính: Confirm & Save
-            Button(
-                onClick = {
-                    viewModel.confirmAndSave(onSuccess = onConfirmSuccess)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(27.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryRed,
-                    contentColor = Color.White
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "Confirm & Save",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = "Confirm",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-}
-
-/**
- * Top Bar với logo WiseKoin, chuông và avatar
- */
-@Composable
-private fun ConfirmReceiptTopBar() {
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .background(CandyBg)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logo & Tên WiseKoin
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-                contentAlignment = Alignment.Center
+        // 1. Top Bar: Logo + Notification + Avatar
+        AppTopBar()
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 2. Tiêu đề màn hình
+        Text(
+            text = "Confirm Receipt",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = BrandGreenDark,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "Review the extracted details before saving.",
+            fontSize = 14.sp,
+            color = TextLight,
+            textAlign = TextAlign.Center
+        )
+
+        if (uiState.isLoading) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(BrandGreenDark)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = BrandGreenDark,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Analyzing receipt with AI...",
+                    fontSize = 13.sp,
+                    color = BrandGreenDark,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+        } else if (uiState.errorMessage != null) {
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "WiseKoin",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = BrandGreenDark
+                text = "Error: ${uiState.errorMessage}",
+                fontSize = 13.sp,
+                color = Color.Red,
+                textAlign = TextAlign.Center
             )
         }
 
-        // Cụm icon góc phải: Chuông + Avatar
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        Spacer(modifier = Modifier.height(22.dp))
+
+        // 3. Khung hiển thị ảnh hóa đơn & Nút Retake
+        ReceiptImageSection(
+            imageUri = uiState.imageUri,
+            onRetake = onRetakeClick
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 4. Card Store Name (Inline Editing)
+        StoreNameCard(
+            storeName = uiState.storeName,
+            onValueChange = { viewModel.updateStoreName(it) }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 5. Hàng 2 cột: Date & Category
+        DateAndCategoryRow(
+            dateText = uiState.date,
+            currentCategory = uiState.category,
+            onCategoryChange = { viewModel.updateCategory(it) }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 6. Card Total Amount (Inline Editing)
+        TotalAmountCard(
+            amount = uiState.amount,
+            onValueChange = { viewModel.updateAmount(it) }
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // 7. Nút viền nét đứt: Scan another receipt
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .dashedBorder(cornerRadius = 26.dp, color = DashedBorderColor)
+                .clip(RoundedCornerShape(26.dp))
+                .clickable { onScanAnotherClick() },
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .neomorphicCircle(
-                        shadowColor = Color.Black.copy(alpha = 0.08f),
-                        lightColor = Color.White,
-                        offset = 2.dp,
-                        blur = 4.dp
-                    )
-                    .clip(CircleShape)
-                    .background(CandyBg),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = "Notification",
-                    tint = TextDark,
+                    imageVector = Icons.Default.AddCircleOutline,
+                    contentDescription = null,
+                    tint = BrandGreenDark,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Scan another receipt",
+                    color = BrandGreenDark,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 8. Nút chính: Confirm & Save
+        Button(
+            onClick = {
+                viewModel.confirmAndSave(onSuccess = onConfirmSuccess)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(27.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PrimaryRed,
+                contentColor = Color.White
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Confirm & Save",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Confirm",
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MintDark.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
-                    tint = BrandGreenDark,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

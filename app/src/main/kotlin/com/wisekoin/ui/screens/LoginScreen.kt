@@ -62,12 +62,6 @@ fun LoginScreen(
                 }
             )
         },
-        bottomBar = {
-            WiseKoinBottomBar(
-                currentRoute = "savings",
-                onTabClick = { /* Tab handler */ }
-            )
-        },
         containerColor = WiseKoinTheme.colors.Background
     ) { paddingValues ->
         Column(
@@ -222,6 +216,17 @@ fun LoginScreen(
                         )
                     }
 
+                    if (uiState.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Let's Go! Button
@@ -232,6 +237,7 @@ fun LoginScreen(
                                 onError = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
                             )
                         },
+                        enabled = !uiState.isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
@@ -243,14 +249,18 @@ fun LoginScreen(
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Let's Go!",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = null)
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Let's Go!",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(Icons.Default.ArrowForward, contentDescription = null)
+                            }
                         }
                     }
                 }

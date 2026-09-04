@@ -45,6 +45,7 @@ val sampleTransactions = mutableListOf(
 
 @Composable
 fun WiseKoinTopBar(
+    userName: String = "Guest",
     onNotificationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onBackClick: (() -> Unit)? = null
@@ -89,13 +90,13 @@ fun WiseKoinTopBar(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Welcome back,",
+                        text = if (userName == "Guest") "Hello," else "Welcome back,",
                         fontSize = 12.sp,
                         color = TextLight,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Alex Johnson",
+                        text = userName,
                         fontSize = 18.sp,
                         color = TextDark,
                         fontWeight = FontWeight.Bold
@@ -449,4 +450,88 @@ fun WiseKoinBottomBar(
         currentRoute = currentRoute,
         onNavigate = onTabClick
     )
+}
+
+// Top Bar: Logo + Name + Profile Button + Notifications
+@Composable
+fun AppTopBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Logo & Tên WiseKoin
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(BrandGreenDark)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "WiseKoin",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = BrandGreenDark
+            )
+        }
+
+        // Cụm icon góc phải: Chuông + Avatar
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .neomorphicCircle(
+                        shadowColor = Color.Black.copy(alpha = 0.08f),
+                        lightColor = Color.White,
+                        offset = 2.dp,
+                        blur = 4.dp
+                    )
+                    .clip(CircleShape)
+                    .background(CandyBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = "Notification",
+                    tint = TextDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MintDark.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    tint = BrandGreenDark,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
 }

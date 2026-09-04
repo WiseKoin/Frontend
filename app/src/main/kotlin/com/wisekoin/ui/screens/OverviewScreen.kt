@@ -17,13 +17,14 @@ import com.wisekoin.ui.theme.*
 
 @Composable
 fun OverviewScreen(
+    userName: String = "Guest",
     onNavigateToAddTransaction: () -> Unit,
     onSeeAllTransactions: () -> Unit,
     onProfileClick: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = CandyBg,
-        topBar = { WiseKoinTopBar(onProfileClick = onProfileClick) }
+        topBar = { WiseKoinTopBar(userName = userName, onProfileClick = onProfileClick) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier

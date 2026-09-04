@@ -21,8 +21,11 @@ import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 
+import androidx.compose.runtime.collectAsState
+
 sealed class Screen(val route: String) {
     object Login : Screen("login")
+    object Register : Screen("register")
     object Profile : Screen("profile")
     object Overview : Screen("overview")
     object Expenses : Screen("expenses")
@@ -56,7 +59,10 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
         Screen.Overview.route,
         Screen.Expenses.route,
         Screen.Savings.route,
-        Screen.Debt.route
+        Screen.Debt.route,
+        Screen.Profile.route,
+        Screen.Login.route,
+        Screen.Register.route
     )
 
     Scaffold(
@@ -91,6 +97,7 @@ fun WiseKoinNavGraph(
 ) {
     // Shared ViewModel cho luồng Scan và Confirm
     val receiptViewModel: ReceiptViewModel = viewModel()
+    val authUiState by authViewModel.uiState.collectAsState()
 
     NavHost(
         navController = navController,
@@ -105,19 +112,45 @@ fun WiseKoinNavGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                onNavigateToSignUp = { },
+                onNavigateToSignUp = {
+                    navController.navigate(Screen.Register.route)
+                },
                 onForgotPasswordClick = { }
+            )
+        }
+
+        composable(Screen.Register.route) {
+            RegisterScreen(
+                viewModel = authViewModel,
+                onRegisterSuccess = {
+                    navController.navigate(Screen.Overview.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(Screen.Profile.route) {
             ProfileScreen(
                 viewModel = authViewModel,
-                onBackClick = { navController.popBackStack() },
                 onLogoutClick = {
                     authViewModel.logout()
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onLoginClick = {
+                    navController.navigate(Screen.Login.route){
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 },
                 onTabSelected = { route ->
@@ -132,9 +165,16 @@ fun WiseKoinNavGraph(
 
         composable(Screen.Overview.route) {
             OverviewScreen(
+                userName = authUiState.name,
                 onNavigateToAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
                 onSeeAllTransactions = { navController.navigate(Screen.Expenses.route) },
-                onProfileClick = { navController.navigate(Screen.Profile.route) }
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route) {
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             )
         }
 

@@ -36,7 +36,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.wisekoin.navigation.Screen
 import com.wisekoin.ui.components.AppTopBar
-import com.wisekoin.ui.components.WiseKoinBottomNavigation
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 

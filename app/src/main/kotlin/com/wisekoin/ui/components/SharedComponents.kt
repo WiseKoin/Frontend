@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -353,17 +355,29 @@ fun TransactionRowItem(transaction: Transaction) {
     }
 }
 
+// -------------------------------------------------------------
+// Data class đại diện cho từng tab trong bottom navigation bar
+// -------------------------------------------------------------
+private data class NavigationTabItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+)
+
+// -------------------------------------------------------------
+// Hàm chính: WiseKoinBottomNavigation
+// -------------------------------------------------------------
 @Composable
-fun WiseKoinBottomNavigation(
+fun WiseKoinBottomBar(
     currentRoute: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    showFab: Boolean = false
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .neomorphicBox(cornerRadius = 0.dp),
-        color = CandyBg,
-        shadowElevation = 8.dp
+        color = CandyBg
     ) {
         Row(
             modifier = Modifier
@@ -372,84 +386,115 @@ fun WiseKoinBottomNavigation(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavigationBarItem(
-                selected = currentRoute == "overview",
-                onClick = { onNavigate("overview") },
-                icon = { Icon(Icons.Outlined.Home, contentDescription = "Overview") },
-                label = { Text("Overview", fontSize = 10.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryRed,
-                    selectedTextColor = PrimaryRed,
-                    unselectedIconColor = TextLight,
-                    unselectedTextColor = TextLight,
-                    indicatorColor = CandyBg
-                )
-            )
-
-            NavigationBarItem(
-                selected = currentRoute == "expenses",
-                onClick = { onNavigate("expenses") },
-                icon = { Icon(Icons.Outlined.PieChart, contentDescription = "Expenses") },
-                label = { Text("Expenses", fontSize = 10.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryRed,
-                    selectedTextColor = PrimaryRed,
-                    unselectedIconColor = TextLight,
-                    unselectedTextColor = TextLight,
-                    indicatorColor = CandyBg
-                )
-            )
-
-            FloatingActionButton(
-                onClick = { onNavigate("add_transaction") },
-                containerColor = PrimaryRed,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
-            }
-
-            NavigationBarItem(
-                selected = currentRoute == "savings",
-                onClick = { onNavigate("savings") },
-                icon = { Icon(Icons.Outlined.Savings, contentDescription = "Savings") },
-                label = { Text("Savings", fontSize = 10.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryRed,
-                    selectedTextColor = PrimaryRed,
-                    unselectedIconColor = TextLight,
-                    unselectedTextColor = TextLight,
-                    indicatorColor = CandyBg
-                )
-            )
-
-            NavigationBarItem(
-                selected = currentRoute == "debt",
-                onClick = { onNavigate("debt") },
-                icon = { Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = "Debt") },
-                label = { Text("Debt", fontSize = 10.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryRed,
-                    selectedTextColor = PrimaryRed,
-                    unselectedIconColor = TextLight,
-                    unselectedTextColor = TextLight,
-                    indicatorColor = CandyBg
-                )
-            )
+            BottomNavContent(currentRoute, onNavigate, showFab)
         }
     }
 }
 
+// -------------------------------------------------------------
+// Điều hướng nội dung hiển thị (4 tab hoặc có kèm nút FAB ở giữa)
+// -------------------------------------------------------------
 @Composable
-fun WiseKoinBottomBar(
+private fun BottomNavContent(
     currentRoute: String,
-    onTabClick: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    showFab: Boolean
 ) {
-    WiseKoinBottomNavigation(
-        currentRoute = currentRoute,
-        onNavigate = onTabClick
+    val leftItems = listOf(
+        NavigationTabItem("overview", "Overview", Icons.Filled.GridView),
+        NavigationTabItem("expenses", "Expenses", Icons.Outlined.Payments)
     )
+    val rightItems = listOf(
+        NavigationTabItem("savings", "Savings", Icons.Outlined.Savings),
+        NavigationTabItem("debt", "Debt", Icons.Outlined.AccountBalanceWallet)
+    )
+
+    if (showFab) {
+        NavItemsGroup(leftItems, currentRoute, onNavigate)
+        CenterAddFabButton { onNavigate("add_transaction") }
+        NavItemsGroup(rightItems, currentRoute, onNavigate)
+    } else {
+        NavItemsGroup(leftItems + rightItems, currentRoute, onNavigate)
+    }
+}
+
+// -------------------------------------------------------------
+// Render danh sách các nút tab
+// -------------------------------------------------------------
+@Composable
+private fun NavItemsGroup(
+    items: List<NavigationTabItem>,
+    currentRoute: String,
+    onNavigate: (String) -> Unit
+) {
+    items.forEach { item ->
+        BottomNavTabCell(
+            item = item,
+            isSelected = currentRoute.equals(item.route, ignoreCase = true),
+            onClick = { onNavigate(item.route) }
+        )
+    }
+}
+
+// -------------------------------------------------------------
+// Từng item tab đơn lẻ (hiệu ứng pill khi chọn)
+// -------------------------------------------------------------
+@Composable
+private fun BottomNavTabCell(
+    item: NavigationTabItem,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (isSelected) Color.White else Color.Transparent)
+                .padding(horizontal = 18.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.label,
+                tint = if (isSelected) PrimaryRed else TextDark,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = item.label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) PrimaryRed else TextDark
+        )
+    }
+}
+
+// -------------------------------------------------------------
+// Nút thêm giao dịch tròn ở giữa (khi showFab = true)
+// -------------------------------------------------------------
+@Composable
+private fun CenterAddFabButton(onClick: () -> Unit) {
+    FloatingActionButton(
+        onClick = onClick,
+        containerColor = PrimaryRed,
+        contentColor = Color.White,
+        shape = CircleShape,
+        modifier = Modifier.size(46.dp),
+        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add Transaction",
+            modifier = Modifier.size(24.dp)
+        )
+    }
 }
 
 // Top Bar: Logo + Name + Profile Button + Notifications

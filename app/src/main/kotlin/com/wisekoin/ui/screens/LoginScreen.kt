@@ -33,8 +33,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wisekoin.ui.components.WiseKoinBottomBar
-import com.wisekoin.ui.components.WiseKoinTopBar
 import com.wisekoin.ui.theme.WiseKoinTheme
 import com.wisekoin.ui.theme.neomorphicCardShadow
 import com.wisekoin.viewmodel.AuthViewModel
@@ -51,17 +49,6 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = {
-            WiseKoinTopBar(
-                onNotificationClick = {
-                    Toast.makeText(context, "Thông báo", Toast.LENGTH_SHORT).show()
-                },
-                onProfileClick = {
-                    // Quick jump
-                    onLoginSuccess()
-                }
-            )
-        },
         containerColor = WiseKoinTheme.colors.Background
     ) { paddingValues ->
         Column(

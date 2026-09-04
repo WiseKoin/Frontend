@@ -16,7 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.wisekoin.ui.components.WiseKoinBottomNavigation
+import com.wisekoin.ui.components.WiseKoinBottomBar
 import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
@@ -54,7 +54,7 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
         authViewModel.setTokenManager(effectiveTokenManager)
     }
 
-    // Chỉ hiển thị BottomBar ở 4 màn hình chính, ẩn ở ConfirmReceipt
+    // Only show bottom bar in listed screens
     val showBottomBar = currentRoute in listOf(
         Screen.Overview.route,
         Screen.Expenses.route,
@@ -62,13 +62,14 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
         Screen.Debt.route,
         Screen.Profile.route,
         Screen.Login.route,
-        Screen.Register.route
+        Screen.Register.route,
+        Screen.AddTransaction.route
     )
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                WiseKoinBottomNavigation(
+                WiseKoinBottomBar(
                     currentRoute = currentRoute,
                     onNavigate = { route ->
                         navController.navigate(route) {
@@ -166,7 +167,13 @@ fun WiseKoinNavGraph(
         composable(Screen.Overview.route) {
             OverviewScreen(
                 userName = authUiState.name,
-                onNavigateToAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
+                onNavigateToAddTransaction = {
+                    navController.navigate(Screen.AddTransaction.route){
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                 },
                 onSeeAllTransactions = { navController.navigate(Screen.Expenses.route) },
                 onProfileClick = {
                     navController.navigate(Screen.Profile.route) {
@@ -197,7 +204,8 @@ fun WiseKoinNavGraph(
             AddTransactionScreen(
                 onClose = { navController.popBackStack() },
                 onVoiceAdd = { navController.navigate(Screen.VoiceRecording.route) },
-                onScanReceipt = { navController.navigate(Screen.ScanReceipt.route) }
+                onScanReceipt = { navController.navigate(Screen.ScanReceipt.route) },
+                authViewModel = authViewModel
             )
         }
 

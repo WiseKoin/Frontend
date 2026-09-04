@@ -59,7 +59,7 @@ fun SavingsGoalsScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neomorphic(cornerRadius = 32.dp),
+                    .neomorphicBox(cornerRadius = 32.dp),
                 shape = RoundedCornerShape(32.dp),
                 colors = CardDefaults.cardColors(containerColor = PrimaryRed)
             ) {
@@ -120,7 +120,7 @@ fun GoalCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 24.dp)
+            .neomorphicBox(cornerRadius = 24.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)

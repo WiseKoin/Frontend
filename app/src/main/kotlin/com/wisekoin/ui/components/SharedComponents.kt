@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +36,7 @@ data class Transaction(
     val iconBgColor: Color
 )
 
-val sampleTransactions = listOf(
+val sampleTransactions = mutableListOf(
     Transaction("1", "Supermarket Groceries", "Dining", "-350,000đ", true, "Today, 14:30", PeachDark),
     Transaction("2", "Monthly Salary", "Income", "+15,000,000đ", false, "Yesterday", MintDark),
     Transaction("3", "Grab Ride", "Transport", "-45,000đ", true, "Yesterday", LemonDark),
@@ -106,7 +107,7 @@ fun WiseKoinTopBar(
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .neomorphic(cornerRadius = 22.dp)
+                .neomorphicBox(cornerRadius = 22.dp)
                 .clip(CircleShape)
                 .background(CandyBg)
                 .clickable { onNotificationClick() },
@@ -130,7 +131,7 @@ fun TotalBalanceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 28.dp),
+            .neomorphicBox(cornerRadius = 28.dp),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
@@ -211,7 +212,7 @@ fun CashFlowCard() {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 24.dp),
+            .neomorphicBox(cornerRadius = 24.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
@@ -300,7 +301,7 @@ fun TransactionRowItem(transaction: Transaction) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 16.dp),
+            .neomorphicBox(cornerRadius = 16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
@@ -359,7 +360,7 @@ fun WiseKoinBottomNavigation(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 0.dp),
+            .neomorphicBox(cornerRadius = 0.dp),
         color = CandyBg,
         shadowElevation = 8.dp
     ) {

@@ -47,7 +47,7 @@ fun ExpensesScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neomorphic(cornerRadius = 28.dp),
+                    .neomorphicBox(cornerRadius = 28.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = CandyBg)
             ) {

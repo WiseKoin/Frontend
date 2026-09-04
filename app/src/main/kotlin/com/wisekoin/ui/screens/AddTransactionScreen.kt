@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -85,7 +84,7 @@ fun AddTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CandyBg, RoundedCornerShape(50))
-                    .neomorphic(cornerRadius = 50.dp)
+                    .neomorphicBox(cornerRadius = 50.dp)
                     .padding(4.dp)
             ) {
                 Button(
@@ -116,7 +115,7 @@ fun AddTransactionScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neomorphic(cornerRadius = 20.dp),
+                    .neomorphicBox(cornerRadius = 20.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = CandyBg)
             ) {
@@ -139,7 +138,7 @@ fun AddTransactionScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neomorphic(cornerRadius = 20.dp),
+                    .neomorphicBox(cornerRadius = 20.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = CandyBg)
             ) {

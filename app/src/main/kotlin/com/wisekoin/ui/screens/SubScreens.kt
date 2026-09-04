@@ -48,7 +48,7 @@ fun VoiceRecordingScreen(onClose: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .neomorphic(cornerRadius = 60.dp)
+                    .neomorphicBox(cornerRadius = 60.dp)
                     .clip(CircleShape)
                     .background(PrimaryRed),
                 contentAlignment = Alignment.Center
@@ -66,65 +66,6 @@ fun VoiceRecordingScreen(onClose: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
             ) {
                 Text("Stop & Process", fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScanReceiptScreen(onClose: () -> Unit) {
-    Scaffold(
-        containerColor = CandyBg,
-        topBar = {
-            TopAppBar(
-                title = { Text("Scan Receipt", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CandyBg)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .neomorphic(cornerRadius = 24.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = CandyBg)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = TextLight, modifier = Modifier.size(64.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text("Align receipt within frame", color = TextLight, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-            Spacer(Modifier.height(32.dp))
-            Button(
-                onClick = onClose,
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
-            ) {
-                Text("Capture & OCR", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }

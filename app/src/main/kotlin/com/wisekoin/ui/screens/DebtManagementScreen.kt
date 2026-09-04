@@ -65,7 +65,7 @@ fun DebtManagementScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CandyBg, RoundedCornerShape(50))
-                    .neomorphic(cornerRadius = 50.dp)
+                    .neomorphicBox(cornerRadius = 50.dp)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -99,7 +99,7 @@ fun DebtManagementScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neomorphic(cornerRadius = 24.dp),
+                    .neomorphicBox(cornerRadius = 24.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = CandyBg)
             ) {
@@ -164,7 +164,7 @@ fun DebtCardItem(debt: DebtItem, isLent: Boolean) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .neomorphic(cornerRadius = 20.dp),
+            .neomorphicBox(cornerRadius = 20.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {

@@ -26,7 +26,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.ui.theme.*
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 data class Transaction(
     val id: String,
@@ -44,6 +48,26 @@ val sampleTransactions = mutableListOf(
     Transaction("3", "Grab Ride", "Transport", "-45,000đ", true, "Yesterday", LemonDark),
     Transaction("4", "Coffee with Friends", "Entertainment", "-85,000đ", true, "20 Oct", LavenderDark),
 )
+
+fun BigDecimal.formatVND(): String {
+    return "%,d VND".format(this.toLong())
+}
+
+fun Long.formatVND(): String = "%,d VND".format(this)
+
+fun Long.formatStringVND(): String = "%,d".format(this)
+
+fun formatTransactionTime(isoString: String): String {
+    return try {
+        val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+        val localDateTime = java.time.LocalDateTime.parse(isoString, inputFormatter)
+        val dateStr = localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))
+        val timeStr = localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+        "$dateStr, $timeStr"
+    } catch (e: Exception) {
+        isoString
+    }
+}
 
 @Composable
 fun WiseKoinTopBar(
@@ -124,6 +148,96 @@ fun WiseKoinTopBar(
         }
     }
 }
+
+// Top Bar: Logo + Name + Profile Button + Notifications
+@Composable
+fun AppTopBar(
+    onNotificationClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Logo & Tên WiseKoin
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(BrandGreenDark)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "WiseKoin",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = BrandGreenDark
+            )
+        }
+
+        // Cụm icon góc phải: Chuông + Avatar
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .neomorphicCircle(
+                        shadowColor = Color.Black.copy(alpha = 0.08f),
+                        lightColor = Color.White,
+                        offset = 2.dp,
+                        blur = 4.dp
+                    )
+                    .clip(CircleShape)
+                    .background(CandyBg)
+                    .clickable { onNotificationClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = "Notification",
+                    tint = TextDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MintDark.copy(alpha = 0.5f))
+                    .clickable { onProfileClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    tint = BrandGreenDark,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun TotalBalanceCard(
@@ -211,7 +325,7 @@ fun TotalBalanceCard(
 }
 
 @Composable
-fun CashFlowCard() {
+fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -232,7 +346,7 @@ fun CashFlowCard() {
                     color = TextDark
                 )
                 Text(
-                    text = "This Month",
+                    text = "This Year",
                     fontSize = 12.sp,
                     color = TextLight,
                     fontWeight = FontWeight.Bold
@@ -240,32 +354,71 @@ fun CashFlowCard() {
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bar Chart Mockup
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
+            if (stats.isNotEmpty()) {
+                val maxExpense = stats.maxOfOrNull { it.totalExpense ?: BigDecimal.ZERO } ?: BigDecimal.ONE
+                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    stats.forEachIndexed { idx, stat ->
+                        val expense = stat.totalExpense ?: BigDecimal.ZERO
+                        val heightRatio = if (maxExpense.compareTo(BigDecimal.ZERO) > 0) {
+                            expense.divide(maxExpense, 4, java.math.RoundingMode.HALF_UP)
+                                .toFloat().coerceIn(0f, 1f)
+                        } else 0f
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
+                            modifier = Modifier.fillMaxHeight()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(18.dp)
+                                    .fillMaxHeight(heightRatio)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(MintDark)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                monthNames.getOrElse(idx) { "" },
+                                fontSize = 11.sp,
+                                color = TextLight,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            } else {
                 val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                 val heights = listOf(0.4f, 0.7f, 0.3f, 0.9f, 0.6f, 0.8f, 0.5f)
-
-                days.forEachIndexed { idx, day ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
-                        modifier = Modifier.fillMaxHeight()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(18.dp)
-                                .fillMaxHeight(heights[idx])
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(if (idx % 2 == 0) PrimaryRed else MintDark)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(day, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    days.forEachIndexed { idx, day ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
+                            modifier = Modifier.fillMaxHeight()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(18.dp)
+                                    .fillMaxHeight(heights[idx])
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(if (idx % 2 == 0) PrimaryRed else MintDark)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(day, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             }
@@ -274,7 +427,7 @@ fun CashFlowCard() {
 }
 
 @Composable
-fun RecentTransactionsSection(onSeeAll: () -> Unit) {
+fun RecentTransactionsSection(transactions: List<Transaction> = sampleTransactions, onSeeAll: () -> Unit) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -292,7 +445,7 @@ fun RecentTransactionsSection(onSeeAll: () -> Unit) {
             }
         }
 
-        sampleTransactions.forEach { transaction ->
+        transactions.forEach { transaction ->
             TransactionRowItem(transaction)
             Spacer(modifier = Modifier.height(10.dp))
         }
@@ -494,89 +647,5 @@ private fun CenterAddFabButton(onClick: () -> Unit) {
             contentDescription = "Add Transaction",
             modifier = Modifier.size(24.dp)
         )
-    }
-}
-
-// Top Bar: Logo + Name + Profile Button + Notifications
-@Composable
-fun AppTopBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Logo & Tên WiseKoin
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(BrandGreenDark)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "WiseKoin",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = BrandGreenDark
-            )
-        }
-
-        // Cụm icon góc phải: Chuông + Avatar
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .neomorphicCircle(
-                        shadowColor = Color.Black.copy(alpha = 0.08f),
-                        lightColor = Color.White,
-                        offset = 2.dp,
-                        blur = 4.dp
-                    )
-                    .clip(CircleShape)
-                    .background(CandyBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = "Notification",
-                    tint = TextDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MintDark.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
-                    tint = BrandGreenDark,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
     }
 }

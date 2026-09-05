@@ -17,18 +17,55 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wisekoin.ui.components.TransactionRowItem
-import com.wisekoin.ui.components.sampleTransactions
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
+import com.wisekoin.viewmodel.WalletViewModel
 
 @Composable
 fun ExpensesScreen(
-    currentBalance: Long = 3450000L,
-    monthlyBudget: Long = 6000000L,
+    walletViewModel: WalletViewModel = viewModel(),
+    isLoggedIn: Boolean = false,
     onAddExpense: () -> Unit
 ) {
+    val state by walletViewModel.uiState.collectAsState()
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            walletViewModel.refreshAll()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isLoggedIn) {
+            walletViewModel.refreshAll()
+        }
+    }
+
+    val displayBalance = state.totalBalance.formatVND()
+
+    val expensesList = state.recentTransactions
+        .filter { it.type == "EXPENSE" }
+        .map { tx ->
+            Transaction(
+                id = tx.id.toString(),
+                title = tx.note ?: tx.category.name,
+                category = tx.category.name,
+                amount = "-${tx.amount.toLong().formatStringVND()}đ",
+                isExpense = true,
+                time = formatTransactionTime(tx.transactionDate),
+                iconBgColor = PeachDark
+            )
+        }
+
     val categories = listOf("All", "Dining", "Transport", "Education", "Entertainment")
     var selectedCategory by remember { mutableStateOf("All") }
+
+    val filteredList = if (selectedCategory == "All") {
+        expensesList
+    } else {
+        expensesList.filter { it.category == selectedCategory }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -42,7 +79,6 @@ fun ExpensesScreen(
             Text("Track your spending against monthly budget limit.", fontSize = 14.sp, color = TextLight)
         }
 
-        // Budget & Balance Card
         item {
             Card(
                 modifier = Modifier
@@ -54,7 +90,7 @@ fun ExpensesScreen(
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text("Current Balance", color = TextLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "3,450,000đ",
+                        displayBalance,
                         color = TextDark,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black
@@ -64,12 +100,12 @@ fun ExpensesScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Month 10 Budget", color = TextLight, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        Text("6,000,000đ", color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Monthly Budget", color = TextLight, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("—", color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
-                        progress = { 0.42f },
+                        progress = 0.5f,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(10.dp)
@@ -79,7 +115,7 @@ fun ExpensesScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Remaining: 2,550,000đ",
+                        "Track your spending habits",
                         color = TextLight,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -89,7 +125,6 @@ fun ExpensesScreen(
             }
         }
 
-        // Horizontal Category Filter Pills
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(categories.size) { index ->
@@ -111,7 +146,6 @@ fun ExpensesScreen(
             }
         }
 
-        // Expenses List
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -130,14 +164,9 @@ fun ExpensesScreen(
             }
         }
 
-        val filteredList = if (selectedCategory == "All") {
-            sampleTransactions.filter { it.isExpense }
-        } else {
-            sampleTransactions.filter { it.isExpense && it.category == selectedCategory }
-        }
-
         items(filteredList) { item ->
             TransactionRowItem(item)
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
         item {

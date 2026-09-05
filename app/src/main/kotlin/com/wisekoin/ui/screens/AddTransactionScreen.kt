@@ -46,6 +46,7 @@ fun AddTransactionScreen(
     onVoiceAdd: () -> Unit,
     onScanReceipt: () -> Unit,
     onConfirmSuccess: () -> Unit,
+    onProfileClick: () -> Unit,
     authViewModel: AuthViewModel,
     categoryViewModel: CategoryViewModel,
     receiptViewModel: ReceiptViewModel
@@ -70,10 +71,13 @@ fun AddTransactionScreen(
             .background(color = CandyBg)
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(all = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        AppTopBar()
+        AppTopBar(
+            onNotificationClick = {},
+            onProfileClick = onProfileClick
+        )
         AmountSection(selectedType, { selectedType = it }, amount, { amount = it }, onClose)
         MiddleDynamicSection(
             type = selectedType,

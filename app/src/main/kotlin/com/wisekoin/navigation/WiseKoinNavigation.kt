@@ -20,6 +20,7 @@ import com.wisekoin.ui.components.WiseKoinBottomBar
 import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
+import com.wisekoin.viewmodel.WalletViewModel
 
 import androidx.compose.runtime.collectAsState
 import com.wisekoin.viewmodel.CategoryViewModel
@@ -167,8 +168,11 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Overview.route) {
+            val walletViewModel: WalletViewModel = viewModel()
             OverviewScreen(
                 userName = authUiState.name,
+                isLoggedIn = authUiState.isLoggedIn,
+                walletViewModel = walletViewModel,
                 onNavigateToAddTransaction = {
                     navController.navigate(Screen.AddTransaction.route){
                         popUpTo(Screen.Overview.route) { saveState = true }
@@ -188,7 +192,12 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Expenses.route) {
-            ExpensesScreen(onAddExpense = { navController.navigate(Screen.AddTransaction.route) })
+            val walletViewModel: WalletViewModel = viewModel()
+            ExpensesScreen(
+                walletViewModel = walletViewModel,
+                isLoggedIn = authUiState.isLoggedIn,
+                onAddExpense = { navController.navigate(Screen.AddTransaction.route) }
+            )
         }
 
         composable(Screen.Savings.route) {
@@ -212,6 +221,13 @@ fun WiseKoinNavGraph(
                     navController.navigate(Screen.Overview.route) {
                         popUpTo(Screen.Overview.route) { inclusive = false }
                         launchSingleTop = true
+                    }
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route) {
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 },
                 authViewModel = authViewModel,

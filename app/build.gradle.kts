@@ -31,6 +31,7 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -75,6 +76,9 @@ dependencies {
 
     // Font
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
+
+    // Core library desugaring (java.time on minSdk < 26)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

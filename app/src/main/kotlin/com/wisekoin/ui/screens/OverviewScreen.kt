@@ -1,48 +1,105 @@
 package com.wisekoin.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
+import com.wisekoin.viewmodel.WalletViewModel
 
 @Composable
 fun OverviewScreen(
     userName: String = "Guest",
+    isLoggedIn: Boolean = false,
+    walletViewModel: WalletViewModel = viewModel(),
     onNavigateToAddTransaction: () -> Unit,
     onSeeAllTransactions: () -> Unit,
     onProfileClick: () -> Unit = {}
 ) {
+    val state by walletViewModel.uiState.collectAsState()
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            walletViewModel.refreshAll()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isLoggedIn) {
+            walletViewModel.refreshAll()
+        }
+    }
+
+    val displayBalance = if (isLoggedIn)
+        state.totalBalance.formatVND()
+    else "0 VND"
+
+    val displayIncome = if (isLoggedIn)
+        state.currentMonthIncome.formatVND()
+    else "0 VND"
+
+    val displayExpense = if (isLoggedIn)
+        state.currentMonthExpense.formatVND()
+    else "0 VND"
+
+    val displayTransactions = if (isLoggedIn) {
+        state.recentTransactions.map { tx ->
+            Transaction(
+                id = tx.id.toString(),
+                title = tx.note ?: tx.category.name,
+                category = tx.category.name,
+                amount = if (tx.type == "EXPENSE") {
+                    "-${tx.amount.toLong().formatStringVND()}"
+                } else {
+                    "+${tx.amount.toLong().formatStringVND()}"
+                },
+                isExpense = tx.type == "EXPENSE",
+                time = formatTransactionTime(tx.transactionDate),
+                iconBgColor = if (tx.type == "EXPENSE") PeachDark else MintDark
+            )
+        }
+    } else emptyList()
+
     Scaffold(
         containerColor = CandyBg,
-        topBar = { WiseKoinTopBar(userName = userName, onProfileClick = onProfileClick) }
+        topBar = {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                AppTopBar(
+                    onNotificationClick = {},
+                    onProfileClick = onProfileClick,
+                )
+            }
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
+                .background(color = CandyBg)
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 1. Total Balance Card
             item {
                 TotalBalanceCard(
-                    balance = "24,500,000 VND",
-                    income = "15.2M",
-                    expense = "8.4M"
+                    balance = displayBalance,
+                    income = displayIncome,
+                    expense = displayExpense
                 )
             }
 
-            // 2. Add Transaction Quick Button
             item {
                 Button(
                     onClick = onNavigateToAddTransaction,
@@ -63,14 +120,15 @@ fun OverviewScreen(
                 }
             }
 
-            // 3. Cash Flow Chart Card
             item {
-                CashFlowCard()
+                CashFlowCard(stats = if (isLoggedIn) state.monthlyStats else emptyList())
             }
 
-            // 4. Recent Transactions
             item {
-                RecentTransactionsSection(onSeeAll = onSeeAllTransactions)
+                RecentTransactionsSection(
+                    transactions = displayTransactions,
+                    onSeeAll = onSeeAllTransactions
+                )
             }
 
             item {

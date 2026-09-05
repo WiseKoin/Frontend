@@ -23,6 +23,7 @@ import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
+import com.wisekoin.viewmodel.VoiceViewModel
 import com.wisekoin.viewmodel.WalletViewModel
 
 import androidx.compose.runtime.collectAsState
@@ -279,7 +280,21 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.VoiceRecording.route) {
-            VoiceRecordingScreen(onClose = { navController.popBackStack() })
+            val walletViewModel: WalletViewModel = viewModel()
+            val voiceViewModel: VoiceViewModel = viewModel()
+            VoiceRecordingScreen(
+                onClose = { navController.popBackStack() },
+                onConfirmSuccess = {
+                    navController.navigate(Screen.Overview.route) {
+                        popUpTo(Screen.Overview.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                voiceViewModel = voiceViewModel,
+                authViewModel = authViewModel,
+                categoryViewModel = categoryViewModel,
+                walletViewModel = walletViewModel
+            )
         }
 
         composable(Screen.CreateGoal.route) {

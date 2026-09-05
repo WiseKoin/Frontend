@@ -1,6 +1,7 @@
 package com.wisekoin.data.remote
 
 import com.wisekoin.data.model.ReceiptResponseDto
+import com.wisekoin.data.model.VoiceResponseDto
 import okhttp3.MultipartBody
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -12,4 +13,10 @@ interface ReceiptApiService {
     suspend fun extractReceipt(
         @Part file: MultipartBody.Part
     ): ReceiptResponseDto
+
+    @Multipart
+    @POST("api/voice/extract")
+    suspend fun extractVoice(
+        @Part file: MultipartBody.Part
+    ): VoiceResponseDto
 }

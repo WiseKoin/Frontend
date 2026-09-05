@@ -2,7 +2,9 @@ package com.wisekoin.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +32,8 @@ import androidx.compose.ui.unit.sp
 import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.ui.theme.*
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 data class Transaction(
     val id: String,
@@ -41,6 +44,9 @@ data class Transaction(
     val time: String,
     val iconBgColor: Color
 )
+
+data class DailyExpense(val day: Int, val expense: BigDecimal)
+data class WeeklyExpense(val dayOfWeek: Int, val expense: BigDecimal)
 
 val sampleTransactions = mutableListOf(
     Transaction("1", "Supermarket Groceries", "Dining", "-350,000đ", true, "Today, 14:30", PeachDark),
@@ -345,8 +351,65 @@ fun TotalBalanceCard(
     }
 }
 
+private data class ChartBarItem(val label: String, val amount: BigDecimal)
+
 @Composable
-fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
+fun CashFlowCard(
+    stats: List<MonthlyStatsDto> = emptyList(),
+    dailyData: List<DailyExpense> = emptyList(),
+    weeklyData: List<WeeklyExpense> = emptyList(),
+    periodLabel: String = "This Year"
+) {
+    val isAllTime = periodLabel.contains("-") || periodLabel.contains("–")
+    val isMonthly = stats.isNotEmpty() && !isAllTime
+    val isDaily = dailyData.isNotEmpty()
+    val isWeekly = weeklyData.isNotEmpty()
+
+    // 1. Chuẩn hóa tất cả các nguồn dữ liệu về một danh sách ChartBarItem thống nhất
+    val chartItems = remember(stats, dailyData, weeklyData, periodLabel) {
+        when {
+            isWeekly -> {
+                val weekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                (1..7).map { dow ->
+                    val exp = weeklyData.find { it.dayOfWeek == dow }?.expense ?: BigDecimal.ZERO
+                    ChartBarItem(weekDays[dow - 1], exp)
+                }
+            }
+            isDaily -> {
+                val daysInMonth = LocalDate.now().lengthOfMonth()
+                (1..daysInMonth).map { d ->
+                    val exp = dailyData.find { it.day == d }?.expense ?: BigDecimal.ZERO
+                    ChartBarItem("%02d".format(d), exp)
+                }
+            }
+            isMonthly -> {
+                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                stats.map { stat ->
+                    ChartBarItem(
+                        label = monthNames.getOrElse(stat.month - 1) { "" },
+                        amount = stat.totalExpense ?: BigDecimal.ZERO
+                    )
+                }
+            }
+            isAllTime -> {
+                val nowYear = LocalDate.now().year
+                val yearGrouped = stats.groupBy { it.year }
+                (nowYear - 10..nowYear).map { year ->
+                    val total = yearGrouped[year]
+                        ?.mapNotNull { it.totalExpense }
+                        ?.fold(BigDecimal.ZERO, BigDecimal::add) ?: BigDecimal.ZERO
+                    ChartBarItem(year.toString(), total)
+                }
+            }
+            else -> {
+                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                monthNames.map { ChartBarItem(it, BigDecimal.ZERO) }
+            }
+        }
+    }
+
+    val maxExpense = chartItems.maxOfOrNull { it.amount } ?: BigDecimal.ONE
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -355,6 +418,7 @@ fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -367,80 +431,70 @@ fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
                     color = TextDark
                 )
                 Text(
-                    text = "This Year",
+                    text = periodLabel,
                     fontSize = 12.sp,
                     color = TextLight,
                     fontWeight = FontWeight.Bold
                 )
             }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (stats.isNotEmpty()) {
-                val maxExpense = stats.maxOfOrNull { it.totalExpense ?: BigDecimal.ZERO } ?: BigDecimal.ONE
-                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    stats.forEachIndexed { idx, stat ->
-                        val expense = stat.totalExpense ?: BigDecimal.ZERO
-                        val heightRatio = if (maxExpense.compareTo(BigDecimal.ZERO) > 0) {
-                            expense.divide(maxExpense, 4, java.math.RoundingMode.HALF_UP)
-                                .toFloat().coerceIn(0f, 1f)
-                        } else 0f
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom,
-                            modifier = Modifier.fillMaxHeight()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(18.dp)
-                                    .fillMaxHeight(heightRatio)
-                                    .clip(RoundedCornerShape(9.dp))
-                                    .background(MintDark)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                monthNames.getOrElse(idx) { "" },
-                                fontSize = 11.sp,
-                                color = TextLight,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
+            // Bar Chart Area
+            val rowModifier = if (isDaily) {
+                // Với tháng 30-31 ngày, cho phép cuộn ngang để không bị méo/tràn
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .horizontalScroll(rememberScrollState())
             } else {
-                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-                val heights = List(12) { 0f }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    monthNames.forEachIndexed { idx, month ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom,
-                            modifier = Modifier.fillMaxHeight()
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+            }
+
+            Row(
+                modifier = rowModifier,
+                horizontalArrangement = if (isDaily) Arrangement.spacedBy(10.dp) else Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                chartItems.forEach { item ->
+                    val heightRatio = if (maxExpense > BigDecimal.ZERO) {
+                        item.amount.divide(maxExpense, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
+                    } else 0f
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
+                        // Khu vực vẽ thanh cột: Chiếm toàn bộ không gian còn lại ở trên
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .width(if (isDaily) 12.dp else 18.dp),
+                            contentAlignment = Alignment.BottomCenter
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(18.dp)
-                                    .fillMaxHeight(heights[idx])
-                                    .clip(RoundedCornerShape(9.dp))
-                                    .background(MintDark)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(month, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                            if (heightRatio > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .fillMaxHeight(heightRatio)
+                                        .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp, bottomStart = 9.dp, bottomEnd = 9.dp))
+                                        .background(MintDark)
+                                )
+                            }
                         }
+
+                        // Khoảng cách giữa cột và chữ
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Text nhãn: Luôn nằm ở dưới cùng và không bị cột đè
+                        Text(
+                            text = item.label,
+                            fontSize = 10.sp,
+                            color = TextLight,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

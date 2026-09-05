@@ -195,8 +195,7 @@ fun WiseKoinNavGraph(
             val walletViewModel: WalletViewModel = viewModel()
             ExpensesScreen(
                 walletViewModel = walletViewModel,
-                isLoggedIn = authUiState.isLoggedIn,
-                onAddExpense = { navController.navigate(Screen.AddTransaction.route) }
+                isLoggedIn = authUiState.isLoggedIn
             )
         }
 

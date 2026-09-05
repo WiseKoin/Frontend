@@ -160,8 +160,8 @@ fun ExpensesScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
-            Text("Expenses & Budget", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
-            Text("Track your spending against monthly budget limit.", fontSize = 14.sp, color = TextLight)
+            Text("Expenses & Patterns", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
+            Text("Track your spending in this week, month or year.", fontSize = 14.sp, color = TextLight)
         }
 
         item {

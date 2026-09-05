@@ -12,13 +12,16 @@ import com.wisekoin.data.remote.RetrofitClient
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.wisekoin.ui.components.WiseKoinBottomBar
 import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
+import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 import com.wisekoin.viewmodel.WalletViewModel
 
@@ -38,7 +41,9 @@ sealed class Screen(val route: String) {
     object ConfirmReceipt : Screen("confirm_receipt") // Route mới
     object VoiceRecording : Screen("voice_recording")
     object CreateGoal : Screen("create_goal")
-    object AddFunds : Screen("add_funds")
+    object AddFunds : Screen("add_funds/{goalId}") {
+        fun createRoute(goalId: Long): String = "add_funds/$goalId"
+    }
 }
 
 @Composable
@@ -102,6 +107,7 @@ fun WiseKoinNavGraph(
     val authUiState by authViewModel.uiState.collectAsState()
     val categoryViewModel: CategoryViewModel = viewModel()
     val receiptViewModel: ReceiptViewModel = viewModel()
+    val goalViewModel: GoalViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -201,8 +207,11 @@ fun WiseKoinNavGraph(
 
         composable(Screen.Savings.route) {
             SavingsGoalsScreen(
+                goalViewModel = goalViewModel,
                 onAddNewGoal = { navController.navigate(Screen.CreateGoal.route) },
-                onGoalClick = { navController.navigate(Screen.AddFunds.route) }
+                onGoalClick = { goalId ->
+                    navController.navigate(Screen.AddFunds.createRoute(goalId))
+                }
             )
         }
 
@@ -274,11 +283,24 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.CreateGoal.route) {
-            CreateGoalScreen(onClose = { navController.popBackStack() })
+            CreateGoalScreen(
+                goalViewModel = goalViewModel,
+                onClose = { navController.popBackStack() },
+                onGoalCreated = { navController.popBackStack() }
+            )
         }
 
-        composable(Screen.AddFunds.route) {
-            AddFundsScreen(onClose = { navController.popBackStack() })
+        composable(
+            route = Screen.AddFunds.route,
+            arguments = listOf(navArgument("goalId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            GoalFundingScreen(
+                goalId = backStackEntry.arguments?.getLong("goalId") ?: 0L,
+                goalViewModel = goalViewModel,
+                categoryViewModel = categoryViewModel,
+                isLoggedIn = authUiState.isLoggedIn,
+                onClose = { navController.popBackStack() }
+            )
         }
     }
 }

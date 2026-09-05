@@ -59,5 +59,7 @@ data class TransactionRequest(
     @SerializedName("note")
     val note: String? = null,
     @SerializedName("transactionDate")
-    val transactionDate: String? = null
+    val transactionDate: String? = null,
+    @SerializedName("goalId")
+    val goalId: Long? = null
 )

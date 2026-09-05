@@ -394,8 +394,9 @@ fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
                     }
                 }
             } else {
-                val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                val heights = listOf(0.4f, 0.7f, 0.3f, 0.9f, 0.6f, 0.8f, 0.5f)
+                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val heights = List(12) { 0f }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -403,7 +404,7 @@ fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    days.forEachIndexed { idx, day ->
+                    monthNames.forEachIndexed { idx, month ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom,
@@ -414,10 +415,10 @@ fun CashFlowCard(stats: List<MonthlyStatsDto> = emptyList()) {
                                     .width(18.dp)
                                     .fillMaxHeight(heights[idx])
                                     .clip(RoundedCornerShape(9.dp))
-                                    .background(if (idx % 2 == 0) PrimaryRed else MintDark)
+                                    .background(MintDark)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(day, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                            Text(month, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
                         }
                     }
                 }

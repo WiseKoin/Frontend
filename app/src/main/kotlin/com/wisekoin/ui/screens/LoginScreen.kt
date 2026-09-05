@@ -243,7 +243,8 @@ fun LoginScreen(
                                 Text(
                                     text = "Let's Go!",
                                     fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(Icons.Default.ArrowForward, contentDescription = null)
@@ -255,49 +256,49 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. Social Auth
-            Text(
-                text = "Or pop in with",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = WiseKoinTheme.colors.OnSurfaceVariant
-            )
+//            // 4. Social Auth
+//            Text(
+//                text = "Or pop in with",
+//                fontSize = 15.sp,
+//                fontWeight = FontWeight.SemiBold,
+//                color = WiseKoinTheme.colors.OnSurfaceVariant
+//            )
+//
+//            Spacer(modifier = Modifier.height(14.dp))
+//
+//            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+//                // Google Button
+//                Box(
+//                    modifier = Modifier
+//                        .size(56.dp)
+//                        .clip(CircleShape)
+//                        .background(WiseKoinTheme.colors.Surface)
+//                        .neomorphicCardShadow(CircleShape, elevation = 4.dp)
+//                        .clickable {
+//                            viewModel.loginWithSocial("Google", onLoginSuccess)
+//                        },
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text("G", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF4285F4))
+//                }
+//
+//                // Facebook Button
+//                Box(
+//                    modifier = Modifier
+//                        .size(56.dp)
+//                        .clip(CircleShape)
+//                        .background(WiseKoinTheme.colors.Surface)
+//                        .neomorphicCardShadow(CircleShape, elevation = 4.dp)
+//                        .clickable {
+//                            viewModel.loginWithSocial("Facebook", onLoginSuccess)
+//                        },
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text("f", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFF1877F2))
+//                }
+//            }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Google Button
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(WiseKoinTheme.colors.Surface)
-                        .neomorphicCardShadow(CircleShape, elevation = 4.dp)
-                        .clickable {
-                            viewModel.loginWithSocial("Google", onLoginSuccess)
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("G", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF4285F4))
-                }
-
-                // Facebook Button
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(WiseKoinTheme.colors.Surface)
-                        .neomorphicCardShadow(CircleShape, elevation = 4.dp)
-                        .clickable {
-                            viewModel.loginWithSocial("Facebook", onLoginSuccess)
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("f", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFF1877F2))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
+//            Spacer(modifier = Modifier.height(28.dp))
 
             // 5. Sign Up text
             Row(verticalAlignment = Alignment.CenterVertically) {

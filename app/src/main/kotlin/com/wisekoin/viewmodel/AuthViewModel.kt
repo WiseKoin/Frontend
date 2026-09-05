@@ -149,7 +149,8 @@ class AuthViewModel : ViewModel() {
                 isLoggedIn = false,
                 name = "Guest",
                 email = "",
-                password = ""
+                password = "",
+                isLoading = false
             )
         }
     }
@@ -205,12 +206,14 @@ class AuthViewModel : ViewModel() {
                     it.copy(
                         currentUser = user,
                         name = if (user.username.isNotBlank()) user.username else user.email.substringBefore("@").replaceFirstChar { it.uppercase() },
-                        email = user.email
+                        email = user.email,
+                        isLoading = false,
+                        isLoggedIn = true
                     )
                 }
             } catch (e: Exception) {
                 val fallback = _uiState.value.email.substringBefore("@").replaceFirstChar { it.uppercase() }
-                _uiState.update { it.copy(name = fallback) }
+                _uiState.update { it.copy(name = fallback, isLoading = false) }
             }
         }
     }

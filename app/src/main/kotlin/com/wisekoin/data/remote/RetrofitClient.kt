@@ -100,4 +100,8 @@ object RetrofitClient {
     val goalApi: GoalApiService by lazy {
         retrofit.create(GoalApiService::class.java)
     }
+
+    val debtApi: DebtApiService by lazy {
+        retrofit.create(DebtApiService::class.java)
+    }
 }

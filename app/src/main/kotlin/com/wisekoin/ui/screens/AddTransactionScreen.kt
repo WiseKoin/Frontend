@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletSummaryResponseDto
@@ -65,6 +66,7 @@ fun AddTransactionScreen(
     onVoiceAdd: () -> Unit,
     onScanReceipt: () -> Unit,
     onConfirmSuccess: () -> Unit,
+    onDebtCreated: () -> Unit,
     onProfileClick: () -> Unit,
     authViewModel: AuthViewModel,
     categoryViewModel: CategoryViewModel,
@@ -88,6 +90,11 @@ fun AddTransactionScreen(
     var showTimePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
+    var counterpartName by remember { mutableStateOf("") }
+    var debtDueDateMillis by remember { mutableStateOf<Long?>(null) }
+    var showDebtDueDatePicker by remember { mutableStateOf(false) }
+    val debtDatePickerState = rememberDatePickerState()
+
     val authUiState by authViewModel.uiState.collectAsState()
     val isLoggedIn = authUiState.isLoggedIn
     val categoryUiState by categoryViewModel.uiState.collectAsState()
@@ -95,7 +102,7 @@ fun AddTransactionScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectedType, isLoggedIn) {
-        if (selectedType in listOf("Expense", "Income")) {
+        if (selectedType in listOf("Expense", "Income", "Lend", "Borrow")) {
             categoryViewModel.loadCategories(selectedType, isLoggedIn)
         }
     }
@@ -148,7 +155,13 @@ fun AddTransactionScreen(
                     onSuccess = {},
                     onError = {}
                 )
-            }
+            },
+            counterpartName = counterpartName,
+            onCounterpartNameChange = { counterpartName = it },
+            debtDueDateMillis = debtDueDateMillis,
+            onDebtDueDateChange = { debtDueDateMillis = it },
+            showDebtDueDatePicker = showDebtDueDatePicker,
+            onDebtDueDatePickerOpen = { showDebtDueDatePicker = true }
         )
         CommonTransactionFields(
             walletName = selectedWalletName,
@@ -219,63 +232,97 @@ fun AddTransactionScreen(
                 }
             )
         }
+        if (showDebtDueDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDebtDueDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        debtDueDateMillis = debtDatePickerState.selectedDateMillis
+                        showDebtDueDatePicker = false
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDebtDueDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = debtDatePickerState)
+            }
+        }
         QuickToolActions(onVoiceAdd, onScanReceipt)
         val context = LocalContext.current
         SaveTransactionButton(
             onClick = {
                 if (!isLoggedIn) {
                     Toast.makeText(context, "Please log in to save a transaction.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                if (amount.isBlank()) {
+                } else if (amount.isBlank()) {
                     Toast.makeText(context, "Please enter an amount.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                if (selectedWalletId == null) {
+                } else if (selectedWalletId == null) {
                     Toast.makeText(context, "Please select a wallet.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                if (selectedType in listOf("Expense", "Income") && selectedCategoryId == null) {
+                } else if (selectedType in listOf("Expense", "Income") && selectedCategoryId == null) {
                     Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                if (selectedType !in listOf("Expense", "Income")) {
-                    Toast.makeText(context, "Lend/Borrow not supported yet.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
-                if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
-                    Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
-                    return@SaveTransactionButton
-                }
-                scope.launch {
-                    try {
-                        val backendType = when (selectedType) {
-                            "Income" -> "INCOME"
-                            else -> "EXPENSE"
+                } else if (selectedType !in listOf("Expense", "Income")) {
+                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
+                        Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
+                    } else if (counterpartName.isBlank()) {
+                        Toast.makeText(context, "Please enter a name for the other party.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val debtType = if (selectedType == "Lend") "LEND" else "BORROW"
+                        val dueDate = debtDueDateMillis?.let {
+                            LocalDate.ofEpochDay(it / 86400000).toString()
                         }
-                        RetrofitClient.transactionApi.createTransaction(
-                            TransactionRequest(
-                                walletId = selectedWalletId!!,
-                                categoryId = selectedCategoryId!!,
-                                amount = parsedAmount,
-                                type = backendType,
-                                note = if (note.isBlank()) null else note,
-                                transactionDate = formatTransactionDate(selectedDateMillis, selectedHour, selectedMinute)
-                            )
-                        )
-                        onConfirmSuccess()
-                    } catch (e: Exception) {
-                        val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
-                            "Insufficient wallet balance."
-                        } else {
-                            e.localizedMessage ?: "Failed to save transaction."
+                        scope.launch {
+                            try {
+                                RetrofitClient.debtApi.createDebt(
+                                    DebtRequest(
+                                        counterpartName = counterpartName.trim(),
+                                        type = debtType,
+                                        totalAmount = parsedAmount,
+                                        dueDate = dueDate,
+                                        note = if (note.isBlank()) null else note
+                                    )
+                                )
+                                onDebtCreated()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, e.localizedMessage ?: "Failed to save debt.", Toast.LENGTH_LONG).show()
+                            }
                         }
-                        Toast.makeText(
-                            context,
-                            errorMsg,
-                            Toast.LENGTH_LONG
-                        ).show()
+                    }
+                } else {
+                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
+                        Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        scope.launch {
+                            try {
+                                val backendType = when (selectedType) {
+                                    "Income" -> "INCOME"
+                                    else -> "EXPENSE"
+                                }
+                                RetrofitClient.transactionApi.createTransaction(
+                                    TransactionRequest(
+                                        walletId = selectedWalletId!!,
+                                        categoryId = selectedCategoryId!!,
+                                        amount = parsedAmount,
+                                        type = backendType,
+                                        note = if (note.isBlank()) null else note,
+                                        transactionDate = formatTransactionDate(selectedDateMillis, selectedHour, selectedMinute)
+                                    )
+                                )
+                                onConfirmSuccess()
+                            } catch (e: Exception) {
+                                val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
+                                    "Insufficient wallet balance."
+                                } else {
+                                    e.localizedMessage ?: "Failed to save transaction."
+                                }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                            }
+                        }
                     }
                 }
             }
@@ -418,10 +465,23 @@ private fun MiddleDynamicSection(
     onCategorySelect: (String, Long?) -> Unit,
     isLoggedIn: Boolean,
     categoryUiState: com.wisekoin.viewmodel.CategoryUiState,
-    onCreateCategory: (String, String) -> Unit
+    onCreateCategory: (String, String) -> Unit,
+    counterpartName: String,
+    onCounterpartNameChange: (String) -> Unit,
+    debtDueDateMillis: Long?,
+    onDebtDueDateChange: (Long?) -> Unit,
+    showDebtDueDatePicker: Boolean,
+    onDebtDueDatePickerOpen: () -> Unit
 ) {
     if (type in listOf("Lend", "Borrow")) {
-        LendBorrowFields()
+        LendBorrowFields(
+            counterpartName = counterpartName,
+            onCounterpartNameChange = onCounterpartNameChange,
+            dueDateMillis = debtDueDateMillis,
+            onDueDateChange = onDebtDueDateChange,
+            showDatePicker = showDebtDueDatePicker,
+            onDatePickerOpen = onDebtDueDatePickerOpen
+        )
     } else {
         CategoryCard(
             type = type,
@@ -436,23 +496,51 @@ private fun MiddleDynamicSection(
 }
 
 @Composable
-private fun LendBorrowFields() {
+private fun LendBorrowFields(
+    counterpartName: String,
+    onCounterpartNameChange: (String) -> Unit,
+    dueDateMillis: Long?,
+    onDueDateChange: (Long?) -> Unit,
+    showDatePicker: Boolean,
+    onDatePickerOpen: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SelectorItemRow(
-            icon = Icons.Outlined.PersonAddAlt,
-            iconBgColor = PrimaryRed.copy(alpha = 0.12f),
-            iconColor = PrimaryRed,
-            title = "Lender/Borrower Name",
-            subtitle = "Select contact"
+        OutlinedTextField(
+            value = counterpartName,
+            onValueChange = onCounterpartNameChange,
+            label = { Text("Counterparty Name") },
+            placeholder = { Text("e.g. John Doe") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
-        SelectorItemRow(
-            icon = Icons.Outlined.CalendarToday,
-            iconBgColor = LemonLight,
-            iconColor = LemonDark,
-            title = "Due Date",
-            subtitle = "Set due date",
-            trailingIcon = Icons.Outlined.CalendarMonth
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .neomorphicBox(cornerRadius = 22.dp)
+                .background(CandyBg, RoundedCornerShape(22.dp))
+                .clickable { onDatePickerOpen() }
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Due Date", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                    val dateText = dueDateMillis?.let {
+                        try {
+                            LocalDate.ofEpochDay(it / 86400000)
+                                .format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                        } catch (e: Exception) {
+                            "No deadline (optional)"
+                        }
+                    } ?: "No deadline (optional)"
+                    Text(dateText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                }
+                Icon(Icons.Default.DateRange, contentDescription = "Pick date", tint = TextDark)
+            }
+        }
     }
 }
 

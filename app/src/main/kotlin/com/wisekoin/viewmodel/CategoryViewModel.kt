@@ -29,6 +29,8 @@ class CategoryViewModel : ViewModel() {
 
         val categoryTypeStr = when (type.lowercase()) {
             "income" -> "INCOME"
+            "lend" -> "LEND"
+            "borrow" -> "BORROW"
             else -> "EXPENSE"
         }
 
@@ -64,6 +66,8 @@ class CategoryViewModel : ViewModel() {
 
         val categoryTypeStr = when (type.lowercase()) {
             "income" -> "INCOME"
+            "lend" -> "LEND"
+            "borrow" -> "BORROW"
             else -> "EXPENSE"
         }
 

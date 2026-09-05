@@ -28,6 +28,7 @@ import com.wisekoin.viewmodel.WalletViewModel
 
 import androidx.compose.runtime.collectAsState
 import com.wisekoin.viewmodel.CategoryViewModel
+import com.wisekoin.viewmodel.DebtViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -217,7 +218,16 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Debt.route) {
-            DebtManagementScreen(onAddDebt = { navController.navigate(Screen.AddTransaction.route) })
+            val debtViewModel: DebtViewModel = viewModel()
+            DebtManagementScreen(
+                debtViewModel = debtViewModel,
+                onAddDebt = { navController.navigate(Screen.AddTransaction.route){
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
 
         composable(Screen.AddTransaction.route) {
@@ -230,6 +240,13 @@ fun WiseKoinNavGraph(
                     navController.navigate(Screen.Overview.route) {
                         popUpTo(Screen.Overview.route) { inclusive = false }
                         launchSingleTop = true
+                    }
+                },
+                onDebtCreated = {
+                    navController.navigate(Screen.Debt.route) {
+                        popUpTo(Screen.Overview.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 },
                 onProfileClick = {

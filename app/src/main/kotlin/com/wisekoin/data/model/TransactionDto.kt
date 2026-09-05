@@ -17,7 +17,9 @@ data class TransactionResponseDto(
     @SerializedName("wallet")
     val wallet: WalletInfoDto,
     @SerializedName("category")
-    val category: CategoryInfoDto
+    val category: CategoryInfoDto,
+    @SerializedName("debt")
+    val debt: DebtInfoDto? = null
 )
 
 data class WalletInfoDto(
@@ -61,5 +63,14 @@ data class TransactionRequest(
     @SerializedName("transactionDate")
     val transactionDate: String? = null,
     @SerializedName("goalId")
-    val goalId: Long? = null
+    val goalId: Long? = null,
+    @SerializedName("debtId")
+    val debtId: Long? = null
+)
+
+data class DebtInfoDto(
+    @SerializedName("id")
+    val id: Long,
+    @SerializedName("counterpartName")
+    val counterpartName: String
 )

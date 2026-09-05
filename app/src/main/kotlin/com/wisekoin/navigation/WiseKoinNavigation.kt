@@ -251,6 +251,8 @@ fun WiseKoinNavGraph(
         composable(Screen.ConfirmReceipt.route) {
             ConfirmReceiptScreen(
                 viewModel = receiptViewModel,
+                authViewModel = authViewModel,
+                categoryViewModel = categoryViewModel,
                 onRetakeClick = {
                     navController.popBackStack()
                 },

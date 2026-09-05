@@ -135,6 +135,63 @@ class ReceiptViewModel : ViewModel() {
         onSuccess()
     }
 
+    fun confirmAndSave(
+        categoryViewModel: CategoryViewModel,
+        selectedWalletId: Long?,
+        isLoggedIn: Boolean,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val currentState = _uiState.value
+
+        if (!isLoggedIn) {
+            onFailure("Please log in to save a transaction.")
+            return
+        }
+        if (selectedWalletId == null) {
+            onFailure("Please select a wallet.")
+            return
+        }
+
+        val parsedAmount = currentState.amount.replace(",", "").toBigDecimalOrNull()
+        if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
+            onFailure("Please enter a valid amount.")
+            return
+        }
+
+        val selectedCategory = categoryViewModel.uiState.value.categories
+            .firstOrNull { it.name == currentState.category }
+        if (selectedCategory == null) {
+            onFailure("Category not found: ${currentState.category}")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                RetrofitClient.transactionApi.createTransaction(
+                    TransactionRequest(
+                        walletId = selectedWalletId,
+                        categoryId = selectedCategory.id,
+                        amount = parsedAmount,
+                        type = "EXPENSE",
+                        note = currentState.storeName.ifBlank { null },
+                        transactionDate = java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    )
+                )
+                resetState()
+                onSuccess()
+            } catch (e: Exception) {
+                val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
+                    "Insufficient wallet balance."
+                } else {
+                    e.localizedMessage ?: "Failed to save transaction."
+                }
+                onFailure(errorMsg)
+            }
+        }
+    }
+
     fun saveFromReceipt(onSuccess: () -> Unit, onFailure: (String) -> Unit) {
         val currentState = _uiState.value
         val parsedAmount = currentState.amount.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO

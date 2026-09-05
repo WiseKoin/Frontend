@@ -1,8 +1,10 @@
 package com.wisekoin.ui.screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -12,8 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -31,18 +33,52 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.wisekoin.data.model.WalletSummaryResponseDto
+import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
+import com.wisekoin.viewmodel.AuthViewModel
+import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun ConfirmReceiptScreen(
     viewModel: ReceiptViewModel,
+    authViewModel: AuthViewModel,
+    categoryViewModel: CategoryViewModel,
     onRetakeClick: () -> Unit,
     onScanAnotherClick: () -> Unit,
     onConfirmSuccess: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val authUiState by authViewModel.uiState.collectAsState()
+    val isLoggedIn = authUiState.isLoggedIn
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var selectedWalletId by remember { mutableStateOf<Long?>(null) }
+    var walletOptions by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            categoryViewModel.loadCategories("Expense", true)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isLoggedIn) {
+            scope.launch {
+                try {
+                    val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
+                    if (response.wallets.isNotEmpty()) {
+                        selectedWalletId = response.wallets[0].id
+                        walletOptions = response.wallets.map { it.id to it.name }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -52,12 +88,10 @@ fun ConfirmReceiptScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Top Bar: Logo + Notification + Avatar
         AppTopBar()
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 2. Tiêu đề màn hình
         Text(
             text = "Confirm Receipt",
             fontSize = 28.sp,
@@ -104,7 +138,6 @@ fun ConfirmReceiptScreen(
 
         Spacer(modifier = Modifier.height(22.dp))
 
-        // 3. Khung hiển thị ảnh hóa đơn & Nút Retake
         ReceiptImageSection(
             imageUri = uiState.imageUri,
             onRetake = onRetakeClick
@@ -112,7 +145,6 @@ fun ConfirmReceiptScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 4. Card Store Name (Inline Editing)
         StoreNameCard(
             storeName = uiState.storeName,
             onValueChange = { viewModel.updateStoreName(it) }
@@ -120,24 +152,32 @@ fun ConfirmReceiptScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Hàng 2 cột: Date & Category
         DateAndCategoryRow(
             dateText = uiState.date,
             currentCategory = uiState.category,
-            onCategoryChange = { viewModel.updateCategory(it) }
+            onCategoryChange = { viewModel.updateCategory(it) },
+            categoryViewModel = categoryViewModel,
+            isLoggedIn = isLoggedIn
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 6. Card Total Amount (Inline Editing)
         TotalAmountCard(
             amount = uiState.amount,
             onValueChange = { viewModel.updateAmount(it) }
         )
 
+        if (isLoggedIn && walletOptions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            WalletSelector(
+                selectedWalletId = selectedWalletId,
+                walletOptions = walletOptions,
+                onWalletSelect = { selectedWalletId = it }
+            )
+        }
+
         Spacer(modifier = Modifier.height(28.dp))
 
-        // 7. Nút viền nét đứt: Scan another receipt
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -169,10 +209,17 @@ fun ConfirmReceiptScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 8. Nút chính: Confirm & Save
         Button(
             onClick = {
-                viewModel.confirmAndSave(onSuccess = onConfirmSuccess)
+                viewModel.confirmAndSave(
+                    categoryViewModel = categoryViewModel,
+                    selectedWalletId = selectedWalletId,
+                    isLoggedIn = isLoggedIn,
+                    onSuccess = onConfirmSuccess,
+                    onFailure = { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                )
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -218,7 +265,6 @@ private fun ReceiptImageSection(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Khung ảnh hóa đơn bo tròn
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -238,7 +284,6 @@ private fun ReceiptImageSection(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                // Ảnh placeholder dự phòng nếu chưa có ảnh chụp
                 AsyncImage(
                     model = "https://images.unsplash.com/photo-1554415707-9e4426c62c76?auto=format&fit=crop&w=600&q=80",
                     contentDescription = "Placeholder Receipt",
@@ -250,7 +295,6 @@ private fun ReceiptImageSection(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Nút Retake nổi
         Box(
             modifier = Modifier
                 .neomorphicBox(cornerRadius = 20.dp, elevation = 4.dp)
@@ -317,7 +361,6 @@ private fun StoreNameCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Ô nhập liệu lõm (Sunken Inset)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -350,10 +393,13 @@ private fun StoreNameCard(
 private fun DateAndCategoryRow(
     dateText: String,
     currentCategory: String,
-    onCategoryChange: (String) -> Unit
+    onCategoryChange: (String) -> Unit,
+    categoryViewModel: CategoryViewModel,
+    isLoggedIn: Boolean
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val categories = listOf("Dining", "Transport", "Shopping", "Entertainment", "General")
+    val categoryUiState by categoryViewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -404,9 +450,7 @@ private fun DateAndCategoryRow(
         Card(
             modifier = Modifier
                 .weight(1.1f)
-                .height(115.dp)
-                .neomorphicBox(cornerRadius = 24.dp, elevation = 5.dp)
-                .clickable { expanded = true },
+                .neomorphicBox(cornerRadius = 24.dp, elevation = 5.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CandyBg)
         ) {
@@ -414,8 +458,9 @@ private fun DateAndCategoryRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Header: CATEGORY label + New Category button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,58 +473,107 @@ private fun DateAndCategoryRow(
                         color = TextLight,
                         letterSpacing = 0.5.sp
                     )
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = TextLight,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Badge danh mục
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(LemonLight),
-                        contentAlignment = Alignment.Center
+                    TextButton(
+                        onClick = {
+                            if (!isLoggedIn) {
+                                Toast.makeText(
+                                    context,
+                                    "Log in to add category.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                showAddDialog = true
+                            }
+                        }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Restaurant,
-                            contentDescription = null,
-                            tint = TextDark,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = if (isLoggedIn) Icons.Default.Add else Icons.Default.Lock,
+                            contentDescription = "Add Category",
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isLoggedIn) BrandGreenDark else TextLight
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "New Category",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isLoggedIn) BrandGreenDark else TextLight
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = currentCategory,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
-                    )
                 }
 
-                // Dropdown chọn nhanh danh mục
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat, fontWeight = FontWeight.SemiBold) },
-                            onClick = {
-                                onCategoryChange(cat)
-                                expanded = false
-                            }
+                // Category chips grid
+                if (categoryUiState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = BrandGreenDark,
+                            strokeWidth = 2.dp
                         )
+                    }
+                } else if (!isLoggedIn) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Empty list (Guest mode)",
+                            fontSize = 11.sp,
+                            color = TextLight
+                        )
+                    }
+                } else if (categoryUiState.categories.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Empty list. Create a new category!",
+                            fontSize = 11.sp,
+                            color = TextLight
+                        )
+                    }
+                } else {
+                    val categories = categoryUiState.categories
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        categories.chunked(2).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                rowItems.forEach { cat ->
+                                    CategoryChip(
+                                        name = cat.name,
+                                        icon = getIconForCategory(cat.icon),
+                                        isSelected = cat.name == currentCategory,
+                                        onClick = { onCategoryChange(cat.name) }
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showAddDialog) {
+        CreateCategoryDialog(
+            type = "Expense",
+            onDismiss = { showAddDialog = false },
+            onConfirm = { name, icon ->
+                categoryViewModel.createCategory(
+                    name = name,
+                    type = "Expense",
+                    icon = icon,
+                    isLoggedIn = isLoggedIn,
+                    onSuccess = {},
+                    onError = {}
+                )
+                showAddDialog = false
+            }
+        )
     }
 }
 
@@ -525,7 +619,6 @@ private fun TotalAmountCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Ô lõm bao quanh số tiền
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -549,7 +642,6 @@ private fun TotalAmountCard(
                     )
                 }
 
-                // Đơn vị tiền tệ bên ngoài ô lõm
                 Text(
                     text = "VND",
                     fontSize = 14.sp,
@@ -559,4 +651,236 @@ private fun TotalAmountCard(
             }
         }
     }
+}
+
+// --------------------------------------------------
+// Wallet Selector (same style as SelectorItemRow in AddTransactionScreen)
+// --------------------------------------------------
+@Composable
+private fun WalletSelector(
+    selectedWalletId: Long?,
+    walletOptions: List<Pair<Long, String>>,
+    onWalletSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = walletOptions.firstOrNull { it.first == selectedWalletId }?.second ?: "Select wallet"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { if (walletOptions.size > 1) expanded = !expanded }
+            .neomorphicBox(cornerRadius = 22.dp, elevation = 5.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = CandyBg)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MintDark.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.AccountBalanceWallet,
+                        null,
+                        tint = BrandGreenDark,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text("Wallet", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                    Text(selectedName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                }
+            }
+            Icon(
+                imageVector = if (walletOptions.size > 1) Icons.Outlined.KeyboardArrowDown else Icons.Outlined.AccountBalanceWallet,
+                contentDescription = null,
+                tint = TextDark,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+
+    if (expanded && walletOptions.size > 1) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 4.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            walletOptions.forEach { (id, name) ->
+                if (id != selectedWalletId) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .clickable {
+                                onWalletSelect(id)
+                                expanded = false
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MintDark.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.AccountBalanceWallet,
+                                null,
+                                tint = BrandGreenDark,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --------------------------------------------------
+// Helper: icon mapping (same logic as AddTransactionScreen)
+// --------------------------------------------------
+private fun getIconForCategory(iconName: String?): ImageVector {
+    return when (iconName?.lowercase()) {
+        "restaurant", "dining" -> Icons.Outlined.Restaurant
+        "transport", "car" -> Icons.Outlined.DirectionsCar
+        "shopping", "bag" -> Icons.Outlined.ShoppingBag
+        "coffee", "cafe" -> Icons.Outlined.LocalCafe
+        "education", "school" -> Icons.Outlined.School
+        "health" -> Icons.Outlined.HealthAndSafety
+        "home" -> Icons.Outlined.Home
+        "work", "salary" -> Icons.Outlined.Work
+        "money", "income" -> Icons.Outlined.AttachMoney
+        "savings" -> Icons.Outlined.Savings
+        else -> Icons.Outlined.Category
+    }
+}
+
+// --------------------------------------------------
+// Compact category chip for the receipt screen
+// --------------------------------------------------
+@Composable
+private fun CategoryChip(
+    name: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) BrandGreenDark else CandyBg.copy(alpha = 0.5f))
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = name,
+                tint = if (isSelected) Color.White else TextDark,
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = name,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.White else TextDark
+            )
+        }
+    }
+}
+
+// --------------------------------------------------
+// Dialog tạo danh mục mới (same pattern as AddTransactionScreen)
+// --------------------------------------------------
+@Composable
+private fun CreateCategoryDialog(
+    type: String,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, icon: String) -> Unit
+) {
+    var categoryName by remember { mutableStateOf("") }
+    var selectedIconName by remember { mutableStateOf("restaurant") }
+
+    val availableIcons = listOf(
+        "restaurant", "transport", "shopping", "coffee",
+        "education", "health", "home", "work", "money", "savings"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create a new category of ${type.lowercase()}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = categoryName,
+                    onValueChange = { categoryName = it },
+                    label = { Text("Category name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("Choose icon:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableIcons.forEach { iconName ->
+                        val isSelected = selectedIconName == iconName
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) BrandGreenDark else CandyBg)
+                                .clickable { selectedIconName = iconName }
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getIconForCategory(iconName),
+                                contentDescription = iconName,
+                                tint = if (isSelected) Color.White else TextDark
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (categoryName.isNotBlank()) {
+                        onConfirm(categoryName.trim(), selectedIconName)
+                    }
+                },
+                enabled = categoryName.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
+            ) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

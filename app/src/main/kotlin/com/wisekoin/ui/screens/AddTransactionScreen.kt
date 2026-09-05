@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wisekoin.data.model.TransactionRequest
+import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletSummaryResponseDto
 import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.AppTopBar
@@ -66,6 +67,7 @@ fun AddTransactionScreen(
     var selectedWalletId by remember { mutableStateOf<Long?>(null) }
     var selectedWalletName by remember { mutableStateOf("Loading...") }
     var walletOptions by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+    var showCreateWalletDialog by remember { mutableStateOf(false) }
 
     val authUiState by authViewModel.uiState.collectAsState()
     val isLoggedIn = authUiState.isLoggedIn
@@ -133,13 +135,33 @@ fun AddTransactionScreen(
             walletName = selectedWalletName,
             walletId = selectedWalletId,
             walletOptions = walletOptions,
+            isLoggedIn = isLoggedIn,
             note = note,
             onNoteChange = { note = it },
             onWalletSelect = { id, name ->
                 selectedWalletId = id
                 selectedWalletName = name
+            },
+            onCreateWallet = {
+                showCreateWalletDialog = true
             }
         )
+        if (showCreateWalletDialog && isLoggedIn) {
+            CreateWalletDialog(
+                onDismiss = { showCreateWalletDialog = false },
+                onWalletCreated = { newWalletId, newWalletName ->
+                    showCreateWalletDialog = false
+                    selectedWalletId = newWalletId
+                    selectedWalletName = newWalletName
+                    scope.launch {
+                        try {
+                            val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
+                            walletOptions = response.wallets.map { it.id to it.name }
+                        } catch (e: Exception) {}
+                    }
+                }
+            )
+        }
         QuickToolActions(onVoiceAdd, onScanReceipt)
         val context = LocalContext.current
         SaveTransactionButton(
@@ -653,9 +675,11 @@ private fun CommonTransactionFields(
     walletName: String,
     walletId: Long?,
     walletOptions: List<Pair<Long, String>>,
+    isLoggedIn: Boolean,
     note: String,
     onNoteChange: (String) -> Unit,
-    onWalletSelect: (Long, String) -> Unit
+    onWalletSelect: (Long, String) -> Unit,
+    onCreateWallet: () -> Unit
 ) {
     var showWalletPicker by remember { mutableStateOf(false) }
     SelectorItemRow(
@@ -666,10 +690,10 @@ private fun CommonTransactionFields(
         subtitle = walletName,
         trailingIcon = Icons.Outlined.KeyboardArrowDown,
         onClick = {
-            if (walletOptions.size > 1) showWalletPicker = !showWalletPicker
+            if (walletOptions.size > 1 || isLoggedIn) showWalletPicker = !showWalletPicker
         }
     )
-    if (showWalletPicker && walletOptions.size > 1) {
+    if (showWalletPicker && (walletOptions.size > 1 || isLoggedIn)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -677,6 +701,36 @@ private fun CommonTransactionFields(
                 .padding(top = 4.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
+            if (isLoggedIn) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .clickable {
+                            showWalletPicker = false
+                            onCreateWallet()
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(BrandGreenDark.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            null,
+                            tint = BrandGreenDark,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Add New Wallet", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = BrandGreenDark)
+                }
+                Spacer(Modifier.height(4.dp))
+            }
             walletOptions.forEach { (id, name) ->
                 if (id != walletId) {
                     Row(
@@ -802,6 +856,120 @@ private fun NoteInputBox(note: String, onNoteChange: (String) -> Unit) {
             )
         }
     }
+}
+
+// -------------------------------------------------------------
+// 6. Dialog tạo ví mới
+// -------------------------------------------------------------
+@Composable
+private fun CreateWalletDialog(
+    onDismiss: () -> Unit,
+    onWalletCreated: (Long, String) -> Unit
+) {
+    var walletName by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf("CASH") }
+    var initialBalance by remember { mutableStateOf("") }
+    val types = listOf("CASH", "BANK", "E_WALLET", "CREDIT_CARD")
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create New Wallet", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = walletName,
+                    onValueChange = { walletName = it },
+                    label = { Text("Wallet Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("Wallet Type", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    types.forEach { type ->
+                        val isSelected = selectedType == type
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) BrandGreenDark else CandyBg)
+                                .clickable { selectedType = type }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = type.replace("_", " "),
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else TextDark,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = initialBalance,
+                    onValueChange = { initialBalance = it },
+                    label = { Text("Initial Balance (VND)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (walletName.isBlank()) {
+                        Toast.makeText(context, "Please enter a wallet name.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val balance = initialBalance.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO
+                    isLoading = true
+                    scope.launch {
+                        try {
+                            RetrofitClient.walletApi.createWallet(
+                                WalletRequest(
+                                    name = walletName.trim(),
+                                    walletType = selectedType,
+                                    initialBalance = balance
+                                )
+                            )
+                            val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
+                            val newWallet = response.wallets.last()
+                            onWalletCreated(newWallet.id, newWallet.name)
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                context,
+                                e.localizedMessage ?: "Failed to create wallet.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Create")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 // -------------------------------------------------------------

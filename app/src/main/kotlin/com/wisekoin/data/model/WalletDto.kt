@@ -20,3 +20,12 @@ data class WalletSummaryResponseDto(
     @SerializedName("wallets")
     val wallets: List<WalletResponseDto>
 )
+
+data class WalletRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("walletType")
+    val walletType: String,
+    @SerializedName("initialBalance")
+    val initialBalance: BigDecimal
+)

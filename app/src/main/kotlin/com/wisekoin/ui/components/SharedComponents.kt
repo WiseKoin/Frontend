@@ -80,6 +80,16 @@ fun formatTransactionTime(isoString: String): String {
     }
 }
 
+fun formatTransactionDate(dateMillis: Long?, hour: Int, minute: Int): String {
+    val base = if (dateMillis != null) {
+        LocalDate.ofEpochDay(dateMillis / 86400000)
+    } else {
+        LocalDate.now()
+    }
+    return base.atTime(hour, minute, 0)
+        .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+}
+
 @Composable
 fun WiseKoinTopBar(
     userName: String = "Guest",

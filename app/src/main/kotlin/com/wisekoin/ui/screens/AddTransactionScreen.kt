@@ -3,8 +3,13 @@ package com.wisekoin.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,16 +43,22 @@ import com.wisekoin.data.model.WalletSummaryResponseDto
 import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.formatAmount
+import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 // -------------------------------------------------------------
 // 1. Màn hình chính (Scaffold & State Management)
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
     onClose: () -> Unit,
@@ -68,6 +80,13 @@ fun AddTransactionScreen(
     var selectedWalletName by remember { mutableStateOf("Loading...") }
     var walletOptions by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
     var showCreateWalletDialog by remember { mutableStateOf(false) }
+
+    var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var selectedHour by remember { mutableStateOf(LocalTime.now().hour) }
+    var selectedMinute by remember { mutableStateOf(LocalTime.now().minute) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
 
     val authUiState by authViewModel.uiState.collectAsState()
     val isLoggedIn = authUiState.isLoggedIn
@@ -136,6 +155,11 @@ fun AddTransactionScreen(
             walletId = selectedWalletId,
             walletOptions = walletOptions,
             isLoggedIn = isLoggedIn,
+            selectedDateMillis = selectedDateMillis,
+            selectedHour = selectedHour,
+            selectedMinute = selectedMinute,
+            showDatePicker = showDatePicker,
+            onDatePickerOpen = { showDatePicker = true },
             note = note,
             onNoteChange = { note = it },
             onWalletSelect = { id, name ->
@@ -159,6 +183,39 @@ fun AddTransactionScreen(
                             walletOptions = response.wallets.map { it.id to it.name }
                         } catch (e: Exception) {}
                     }
+                }
+            )
+        }
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedDateMillis = datePickerState.selectedDateMillis
+                        showDatePicker = false
+                        showTimePicker = true
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+        if (showTimePicker) {
+            CustomTimePickerDialog(
+                initialHour = selectedHour,
+                initialMinute = selectedMinute,
+                onDismiss = { showTimePicker = false },
+                onTimeSelected = { hour, minute ->
+                    selectedHour = hour
+                    selectedMinute = minute
+                    showTimePicker = false
                 }
             )
         }
@@ -203,7 +260,8 @@ fun AddTransactionScreen(
                                 categoryId = selectedCategoryId!!,
                                 amount = parsedAmount,
                                 type = backendType,
-                                note = if (note.isBlank()) null else note
+                                note = if (note.isBlank()) null else note,
+                                transactionDate = formatTransactionDate(selectedDateMillis, selectedHour, selectedMinute)
                             )
                         )
                         onConfirmSuccess()
@@ -676,6 +734,11 @@ private fun CommonTransactionFields(
     walletId: Long?,
     walletOptions: List<Pair<Long, String>>,
     isLoggedIn: Boolean,
+    selectedDateMillis: Long?,
+    selectedHour: Int,
+    selectedMinute: Int,
+    showDatePicker: Boolean,
+    onDatePickerOpen: () -> Unit,
     note: String,
     onNoteChange: (String) -> Unit,
     onWalletSelect: (Long, String) -> Unit,
@@ -769,7 +832,9 @@ private fun CommonTransactionFields(
         iconBgColor = LavenderDark.copy(alpha = 0.2f),
         iconColor = LavenderDark,
         title = "Date & Time",
-        subtitle = "Today, 14:30"
+        subtitle = formatDateTime(selectedDateMillis, selectedHour, selectedMinute),
+        trailingIcon = Icons.Outlined.AccessTime,
+        onClick = onDatePickerOpen
     )
     NoteInputBox(note, onNoteChange)
 }
@@ -861,6 +926,23 @@ private fun NoteInputBox(note: String, onNoteChange: (String) -> Unit) {
 // -------------------------------------------------------------
 // 6. Dialog tạo ví mới
 // -------------------------------------------------------------
+
+private fun formatDateTime(dateMillis: Long?, hour: Int, minute: Int): String {
+    val dateStr = if (dateMillis != null) {
+        val date = LocalDate.ofEpochDay(dateMillis / 86400000)
+        date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+    } else {
+        val today = LocalDate.now()
+        today.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+    }
+    return "$dateStr, ${"%02d:%02d".format(hour, minute)}"
+}
+
+@Composable
+private fun FormatDateTime(dateMillis: Long?, hour: Int, minute: Int): String {
+    return formatDateTime(dateMillis, hour, minute)
+}
+
 @Composable
 private fun CreateWalletDialog(
     onDismiss: () -> Unit,
@@ -1047,5 +1129,146 @@ private fun CircularIconButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, description, tint = TextDark, modifier = Modifier.size(iconSize))
+    }
+}
+
+// -------------------------------------------------------------
+// Custom Time Picker Dialog
+// -------------------------------------------------------------
+@Composable
+private fun CustomTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onDismiss: () -> Unit,
+    onTimeSelected: (Int, Int) -> Unit
+) {
+    var hour by remember { mutableStateOf(initialHour) }
+    var minute by remember { mutableStateOf(initialMinute) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Time", fontWeight = FontWeight.Bold) },
+        text = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ScrollableTimeColumn(
+                    values = (0..23).toList(),
+                    initial = hour,
+                    label = "Hour",
+                    color = BrandGreenDark
+                ) { hour = it }
+                Text(":", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
+                ScrollableTimeColumn(
+                    values = (0..59).toList(),
+                    initial = minute,
+                    label = "Min",
+                    color = BrandGreenDark
+                ) { minute = it }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onTimeSelected(hour, minute) },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ScrollableTimeColumn(
+    values: List<Int>,
+    initial: Int,
+    label: String,
+    color: Color,
+    onSelected: (Int) -> Unit
+) {
+    val itemHeight = 36.dp
+    val itemSpacing = 2.dp
+    val viewportHeight = 140.dp
+    val verticalPadding = (viewportHeight - itemHeight) / 2
+
+    // Tìm index khởi tạo
+    val initialIndex = values.indexOf(initial).coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Lấy item nằm gần tâm (center) của viewport nhất
+    val centeredItemIndex by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) return@derivedStateOf initialIndex
+
+            // Tọa độ y của tâm viewport tính từ mép trên nội dung
+            val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+
+            // Tìm item có tâm gần tâm viewport nhất
+            visibleItems.minByOrNull { item ->
+                val itemCenter = item.offset + item.size / 2
+                abs(itemCenter - viewportCenter)
+            }?.index ?: initialIndex
+        }
+    }
+
+    // Khi item ở giữa thay đổi (người dùng cuộn dừng lại), trigger callback
+    LaunchedEffect(centeredItemIndex) {
+        if (centeredItemIndex in values.indices) {
+            onSelected(values[centeredItemIndex])
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = Color.Gray, // Thay bằng TextLight của bạn
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = snapFlingBehavior, // Tự động hít số vào chính giữa
+            contentPadding = PaddingValues(vertical = verticalPadding), // Cho phép số đầu/cuối cuộn ra giữa
+            modifier = Modifier
+                .height(viewportHeight)
+                .width(50.dp),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            items(values.size) { index ->
+                val value = values[index]
+                val isSelected = index == centeredItemIndex
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) color.copy(alpha = 0.15f) else Color.Transparent)
+                        .padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "%02d".format(value),
+                        fontSize = 16.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) color else Color.Gray // Thay bằng TextLight của bạn
+                    )
+                }
+            }
+        }
     }
 }

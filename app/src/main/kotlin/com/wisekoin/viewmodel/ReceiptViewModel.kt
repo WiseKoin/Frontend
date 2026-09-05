@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.ReceiptResponseDto
+import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.Transaction
 import com.wisekoin.ui.components.sampleTransactions
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -131,6 +133,32 @@ class ReceiptViewModel : ViewModel() {
 
         resetState()
         onSuccess()
+    }
+
+    fun saveFromReceipt(onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        val currentState = _uiState.value
+        val parsedAmount = currentState.amount.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO
+        if (parsedAmount <= BigDecimal.ZERO) {
+            onFailure("Invalid amount")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                RetrofitClient.transactionApi.createTransaction(
+                    TransactionRequest(
+                        walletId = 1L,
+                        categoryId = 1L,
+                        amount = parsedAmount,
+                        type = "EXPENSE",
+                        note = currentState.storeName.ifBlank { null }
+                    )
+                )
+                resetState()
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure(e.localizedMessage ?: "Failed to save transaction")
+            }
+        }
     }
 
     fun resetState() {

@@ -15,7 +15,7 @@ data class WalletResponseDto(
 )
 
 data class WalletSummaryResponseDto(
-    @SerializedName("total_balance")
+    @SerializedName("totalBalance")
     val totalBalance: BigDecimal,
     @SerializedName("wallets")
     val wallets: List<WalletResponseDto>

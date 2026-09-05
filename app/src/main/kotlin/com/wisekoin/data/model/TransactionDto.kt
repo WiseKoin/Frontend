@@ -12,7 +12,7 @@ data class TransactionResponseDto(
     val type: String,
     @SerializedName("note")
     val note: String?,
-    @SerializedName("transaction_date")
+    @SerializedName("transactionDate")
     val transactionDate: String,
     @SerializedName("wallet")
     val wallet: WalletInfoDto,
@@ -45,4 +45,19 @@ data class PagedTransactionResponse(
     val number: Int,
     @SerializedName("totalPages")
     val totalPages: Int
+)
+
+data class TransactionRequest(
+    @SerializedName("walletId")
+    val walletId: Long,
+    @SerializedName("categoryId")
+    val categoryId: Long,
+    @SerializedName("amount")
+    val amount: BigDecimal,
+    @SerializedName("type")
+    val type: String,
+    @SerializedName("note")
+    val note: String? = null,
+    @SerializedName("transactionDate")
+    val transactionDate: String? = null
 )

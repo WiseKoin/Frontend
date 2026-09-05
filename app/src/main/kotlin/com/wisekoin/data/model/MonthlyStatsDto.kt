@@ -8,8 +8,8 @@ data class MonthlyStatsDto(
     val month: Int,
     @SerializedName("year")
     val year: Int,
-    @SerializedName("total_income")
+    @SerializedName("totalIncome")
     val totalIncome: BigDecimal?,
-    @SerializedName("total_expense")
+    @SerializedName("totalExpense")
     val totalExpense: BigDecimal?
 )

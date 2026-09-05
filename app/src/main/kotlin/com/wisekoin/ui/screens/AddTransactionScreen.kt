@@ -31,11 +31,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wisekoin.data.model.TransactionRequest
+import com.wisekoin.data.model.WalletSummaryResponseDto
+import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.AppTopBar
+import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
+import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 // -------------------------------------------------------------
 // 1. Màn hình chính (Scaffold & State Management)
@@ -52,17 +58,40 @@ fun AddTransactionScreen(
     receiptViewModel: ReceiptViewModel
 ) {
     var selectedType by remember { mutableStateOf("Expense") }
-    var amount by remember { mutableStateOf("1,250,000") }
+    var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
+    var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
     var note by remember { mutableStateOf("") }
+
+    var selectedWalletId by remember { mutableStateOf<Long?>(null) }
+    var selectedWalletName by remember { mutableStateOf("Loading...") }
+    var walletOptions by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
 
     val authUiState by authViewModel.uiState.collectAsState()
     val isLoggedIn = authUiState.isLoggedIn
     val categoryUiState by categoryViewModel.uiState.collectAsState()
 
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(selectedType, isLoggedIn) {
         if (selectedType in listOf("Expense", "Income")) {
             categoryViewModel.loadCategories(selectedType, isLoggedIn)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
+                if (response.wallets.isNotEmpty()) {
+                    val first = response.wallets[0]
+                    selectedWalletId = first.id
+                    selectedWalletName = first.name
+                    walletOptions = response.wallets.map { it.id to it.name }
+                }
+            } catch (e: Exception) {
+                selectedWalletName = "Main Cash"
+            }
         }
     }
 
@@ -82,7 +111,11 @@ fun AddTransactionScreen(
         MiddleDynamicSection(
             type = selectedType,
             selectedCategory = category,
-            onCategorySelect = { category = it },
+            selectedCategoryId = selectedCategoryId,
+            onCategorySelect = { name, id ->
+                category = name
+                selectedCategoryId = id
+            },
             isLoggedIn = isLoggedIn,
             categoryUiState = categoryUiState,
             onCreateCategory = { name, icon ->
@@ -96,11 +129,75 @@ fun AddTransactionScreen(
                 )
             }
         )
-        CommonTransactionFields(note) { note = it }
+        CommonTransactionFields(
+            walletName = selectedWalletName,
+            walletId = selectedWalletId,
+            walletOptions = walletOptions,
+            note = note,
+            onNoteChange = { note = it },
+            onWalletSelect = { id, name ->
+                selectedWalletId = id
+                selectedWalletName = name
+            }
+        )
         QuickToolActions(onVoiceAdd, onScanReceipt)
+        val context = LocalContext.current
         SaveTransactionButton(
             onClick = {
-                receiptViewModel.confirmAndSave(onSuccess = onConfirmSuccess)
+                if (!isLoggedIn) {
+                    Toast.makeText(context, "Please log in to save a transaction.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                if (amount.isBlank()) {
+                    Toast.makeText(context, "Please enter an amount.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                if (selectedWalletId == null) {
+                    Toast.makeText(context, "Please select a wallet.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                if (selectedType in listOf("Expense", "Income") && selectedCategoryId == null) {
+                    Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                if (selectedType !in listOf("Expense", "Income")) {
+                    Toast.makeText(context, "Lend/Borrow not supported yet.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
+                    Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
+                    return@SaveTransactionButton
+                }
+                scope.launch {
+                    try {
+                        val backendType = when (selectedType) {
+                            "Income" -> "INCOME"
+                            else -> "EXPENSE"
+                        }
+                        RetrofitClient.transactionApi.createTransaction(
+                            TransactionRequest(
+                                walletId = selectedWalletId!!,
+                                categoryId = selectedCategoryId!!,
+                                amount = parsedAmount,
+                                type = backendType,
+                                note = if (note.isBlank()) null else note
+                            )
+                        )
+                        onConfirmSuccess()
+                    } catch (e: Exception) {
+                        val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
+                            "Insufficient wallet balance."
+                        } else {
+                            e.localizedMessage ?: "Failed to save transaction."
+                        }
+                        Toast.makeText(
+                            context,
+                            errorMsg,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
         )
         Spacer(Modifier.height(8.dp))
@@ -215,7 +312,7 @@ private fun AmountInputDisplay(
             Spacer(Modifier.width(10.dp))
             BasicTextField(
                 value = amount,
-                onValueChange = onAmountChange,
+                onValueChange = { newValue -> onAmountChange(formatAmount(newValue)) },
                 textStyle = TextStyle(
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
@@ -237,7 +334,8 @@ private fun AmountInputDisplay(
 private fun MiddleDynamicSection(
     type: String,
     selectedCategory: String,
-    onCategorySelect: (String) -> Unit,
+    selectedCategoryId: Long?,
+    onCategorySelect: (String, Long?) -> Unit,
     isLoggedIn: Boolean,
     categoryUiState: com.wisekoin.viewmodel.CategoryUiState,
     onCreateCategory: (String, String) -> Unit
@@ -248,6 +346,7 @@ private fun MiddleDynamicSection(
         CategoryCard(
             type = type,
             selectedCategory = selectedCategory,
+            selectedCategoryId = selectedCategoryId,
             onCategorySelect = onCategorySelect,
             isLoggedIn = isLoggedIn,
             categoryUiState = categoryUiState,
@@ -300,7 +399,8 @@ private fun getIconForCategory(iconName: String?): ImageVector {
 private fun CategoryCard(
     type: String,
     selectedCategory: String,
-    onCategorySelect: (String) -> Unit,
+    selectedCategoryId: Long?,
+    onCategorySelect: (String, Long?) -> Unit,
     isLoggedIn: Boolean,
     categoryUiState: com.wisekoin.viewmodel.CategoryUiState,
     onCreateCategory: (String, String) -> Unit
@@ -400,9 +500,10 @@ private fun CategoryCard(
                             rowItems.forEach { cat ->
                                 CategoryBackendItemCell(
                                     name = cat.name,
+                                    id = cat.id,
                                     icon = getIconForCategory(cat.icon),
-                                    isSelected = selectedCategory == cat.name,
-                                    onClick = { onCategorySelect(cat.name) }
+                                    isSelected = selectedCategoryId == cat.id,
+                                    onClick = { onCategorySelect(cat.name, cat.id) }
                                 )
                                 Spacer(Modifier.width(8.dp))
                             }
@@ -428,6 +529,7 @@ private fun CategoryCard(
 @Composable
 private fun CategoryBackendItemCell(
     name: String,
+    id: Long,
     icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -547,14 +649,67 @@ private fun CreateCategoryDialog(
 // 5. Các trường thông tin chung (Wallet, Date, Note)
 // -------------------------------------------------------------
 @Composable
-private fun CommonTransactionFields(note: String, onNoteChange: (String) -> Unit) {
+private fun CommonTransactionFields(
+    walletName: String,
+    walletId: Long?,
+    walletOptions: List<Pair<Long, String>>,
+    note: String,
+    onNoteChange: (String) -> Unit,
+    onWalletSelect: (Long, String) -> Unit
+) {
+    var showWalletPicker by remember { mutableStateOf(false) }
     SelectorItemRow(
         icon = Icons.Outlined.AccountBalanceWallet,
         iconBgColor = MintDark.copy(alpha = 0.35f),
         iconColor = BrandGreenDark,
         title = "Wallet",
-        subtitle = "Main Cash"
+        subtitle = walletName,
+        trailingIcon = Icons.Outlined.KeyboardArrowDown,
+        onClick = {
+            if (walletOptions.size > 1) showWalletPicker = !showWalletPicker
+        }
     )
+    if (showWalletPicker && walletOptions.size > 1) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 4.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            walletOptions.forEach { (id, name) ->
+                if (id != walletId) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .clickable {
+                                onWalletSelect(id, name)
+                                showWalletPicker = false
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MintDark.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.AccountBalanceWallet,
+                                null,
+                                tint = BrandGreenDark,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    }
+                }
+            }
+        }
+    }
     SelectorItemRow(
         icon = Icons.Outlined.CalendarToday,
         iconBgColor = LavenderDark.copy(alpha = 0.2f),

@@ -57,6 +57,17 @@ fun Long.formatVND(): String = "%,d VND".format(this)
 
 fun Long.formatStringVND(): String = "%,d".format(this)
 
+fun formatAmount(raw: String): String {
+    val digits = raw.filter { it.isDigit() }
+    if (digits.isEmpty()) return ""
+    val sb = StringBuilder()
+    for ((i, char) in digits.reversed().withIndex()) {
+        if (i > 0 && i % 3 == 0) sb.append(',')
+        sb.append(char)
+    }
+    return sb.reverse().toString()
+}
+
 fun formatTransactionTime(isoString: String): String {
     return try {
         val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")

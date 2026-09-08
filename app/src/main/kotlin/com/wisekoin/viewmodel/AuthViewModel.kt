@@ -7,20 +7,20 @@ import com.wisekoin.data.model.LoginRequest
 import com.wisekoin.data.model.RegisterRequest
 import com.wisekoin.data.model.UpdateProfileRequest
 import com.wisekoin.data.model.UserResponseDto
+import com.wisekoin.data.remote.ErrorResponse
 import com.wisekoin.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 data class AuthUiState(
     val email: String = "",
     val password: String = "",
     val name: String = "Guest",
     val avatarUrl: String = "https://lh3.googleusercontent.com/aida-public/AB6AXuAvZLwLc8DTKzGGRrKq1WOp54IgsHb5C9gRSqjUlBv_xmhBsjyJro6RV5bh6tEEr27KHFYEB3HD5GJ_nVoJtWJHkjLNhCWqS3mi7TPCVUkwM0mQ2DT6icCYuGjo0hFRF0P5qP5bj6fHaGdx4ZyT57CHAWMX4ZciqJwkYAc88NUwzWebC7-lnAN-6ps1ZieMqDjK0vlIBgAGlZaTL_wN0P85oGyONEChyuDc153m7n9zyAARuKqyBorM9Q",
-    val isPro: Boolean = false,
-    val level: Int = 1,
     val isLoggedIn: Boolean = false,
     val currentUser: UserResponseDto? = null,
     val isLoading: Boolean = false,
@@ -86,8 +86,12 @@ class AuthViewModel : ViewModel() {
                 tokenManager?.saveToken(response.accessToken)
                 fetchUser()
                 onSuccess()
+            } catch(e: HttpException) {
+                val body = e.response()?.errorBody()?.string()
+                val msg = RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)?.error?: "Register failed (From Http)"
+                onError(msg)
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin."
+                val errorMsg = e.localizedMessage ?: "Register failed (From dunno?)"
                 _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
                 onError(errorMsg)
             }
@@ -103,7 +107,7 @@ class AuthViewModel : ViewModel() {
         onError: (String) -> Unit
     ) {
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
-            onError("Vui lòng nhập đầy đủ thông tin bắt buộc")
+            onError("Please enter the required information.")
             return
         }
 
@@ -126,7 +130,7 @@ class AuthViewModel : ViewModel() {
                 onSuccess()
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage) }
-                onError(e.localizedMessage ?: "Đăng ký thất bại. Vui lòng kiểm tra lại.")
+                onError(e.localizedMessage ?: "Register failed, please recheck your information.")
             }
         }
     }

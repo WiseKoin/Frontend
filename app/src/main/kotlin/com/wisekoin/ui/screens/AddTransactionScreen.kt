@@ -557,8 +557,8 @@ private fun getIconForCategory(iconName: String?): ImageVector {
         "health" -> Icons.Outlined.HealthAndSafety
         "home" -> Icons.Outlined.Home
         "work", "salary" -> Icons.Outlined.Work
-        "money", "income" -> Icons.Outlined.AttachMoney
-        "savings" -> Icons.Outlined.Savings
+        "money", "income", "lend" -> Icons.Outlined.AttachMoney
+        "savings", "borrow" -> Icons.Outlined.Savings
         else -> Icons.Outlined.Category
     }
 }

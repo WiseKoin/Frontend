@@ -29,27 +29,26 @@ object RetrofitClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
-    private val errorInterceptor = Interceptor { chain ->
-        val response = chain.proceed(chain.request())
-        if (response.code >= 400 && response.code < 600) {
-            val body = response.body?.string()
-            if (!body.isNullOrBlank()) {
-                try {
-                    val errorResponse = gson.fromJson(body, ErrorResponse::class.java)
-                    val message = errorResponse?.error ?: errorResponse?.message ?: body
-                    throw RuntimeException(message)
-                } catch (e: Exception) {
-                    throw RuntimeException("HTTP ${response.code}: $body")
-                }
-            }
-        }
-        response
-    }
+//    private val errorInterceptor = Interceptor { chain ->
+//        val response = chain.proceed(chain.request())
+//        if (response.code >= 400 && response.code < 600) {
+//            val body = response.body?.string()
+//            if (!body.isNullOrBlank()) {
+//                try {
+//                    val errorResponse = gson.fromJson(body, ErrorResponse::class.java)
+//                    val message = errorResponse?.error ?: errorResponse?.message ?: body
+//                    throw RuntimeException(message)
+//                } catch (e: Exception) {
+//                    throw RuntimeException("HTTP ${response.code}: $body")
+//                }
+//            }
+//        }
+//        response
+//    }
 
     private val okHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .addInterceptor(errorInterceptor)
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)

@@ -4,11 +4,11 @@ Jetpack Compose mobile application for the WiseKoin financial management platfor
 
 ## Group Members
 
-| Student ID | Full Name       | Role                                          |
-|------------|-----------------|-----------------------------------------------|
-| 24125053   | Nguyen Van Le Bao  | —                                            |
-| 24125016   | Hoang Duc Hung Phat | —                                          |
-| 24125076   | Tran Thien Phuc    | Android UI/UX, ViewModels, Navigation, CameraX, Retrofit integration |
+| Student ID | Full Name             | Role                                                                                          |
+|------------|-----------------------|-----------------------------------------------------------------------------------------------|
+| 24125076   | Tran Thien Phuc       | —                                                                                             |
+| 24125016   | Hoang Duc Hung Phat   | Android: UI screens, navigation, ViewModels; CameraX receipt scanning (33.33%)                |
+| 24125053   | Nguyen Van Le Bao     | Android: UI screens, navigation, ViewModels; Retrofit API integration; voice recording; local token management (33.33%) |
 
 ## Project Title
 

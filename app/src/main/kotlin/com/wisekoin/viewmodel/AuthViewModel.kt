@@ -86,12 +86,8 @@ class AuthViewModel : ViewModel() {
                 tokenManager?.saveToken(response.accessToken)
                 fetchUser()
                 onSuccess()
-            } catch(e: HttpException) {
-                val body = e.response()?.errorBody()?.string()
-                val msg = RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)?.error?: "Register failed (From Http)"
-                onError(msg)
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Register failed (From dunno?)"
+                val errorMsg = e.localizedMessage ?: "Logging in failed. Please check your information."
                 _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
                 onError(errorMsg)
             }
@@ -128,9 +124,15 @@ class AuthViewModel : ViewModel() {
                 }
                 fetchUser()
                 onSuccess()
+            } catch(e: HttpException) {
+                val body = e.response()?.errorBody()?.string()
+                val msg = body ?: "Register failed (From Http)"
+                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                onError(msg)
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage) }
-                onError(e.localizedMessage ?: "Register failed, please recheck your information.")
+                val errorMsg = e.localizedMessage ?: "Register failed (From dunno?)"
+                _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                onError(errorMsg)
             }
         }
     }

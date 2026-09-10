@@ -24,7 +24,9 @@ data class AuthUiState(
     val isLoggedIn: Boolean = false,
     val currentUser: UserResponseDto? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val registerErrorMessage: String? = null,
+    val loginErrorMessage: String? = null,
+    val updateErrorMessage: String? = null
 )
 
 class AuthViewModel : ViewModel() {
@@ -59,26 +61,26 @@ class AuthViewModel : ViewModel() {
 
         if (email.isBlank()) {
             val msg = "Vui lòng nhập địa chỉ Email"
-            _uiState.update { it.copy(errorMessage = msg) }
+            _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return
         }
 
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() && !email.contains("@")) {
             val msg = "Định dạng Email không hợp lệ"
-            _uiState.update { it.copy(errorMessage = msg) }
+            _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return
         }
 
         if (password.isBlank()) {
             val msg = "Vui lòng nhập Mật khẩu"
-            _uiState.update { it.copy(errorMessage = msg) }
+            _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update { it.copy(isLoading = true, loginErrorMessage = null) }
 
         viewModelScope.launch {
             try {
@@ -88,7 +90,7 @@ class AuthViewModel : ViewModel() {
                 onSuccess()
             } catch (e: Exception) {
                 val errorMsg = e.localizedMessage ?: "Logging in failed. Please check your information."
-                _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                _uiState.update { it.copy(isLoading = false, loginErrorMessage = errorMsg) }
                 onError(errorMsg)
             }
         }
@@ -107,7 +109,7 @@ class AuthViewModel : ViewModel() {
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update { it.copy(isLoading = true, registerErrorMessage = null) }
 
         viewModelScope.launch {
             try {
@@ -127,11 +129,11 @@ class AuthViewModel : ViewModel() {
             } catch(e: HttpException) {
                 val body = e.response()?.errorBody()?.string()
                 val msg = body ?: "Register failed (From Http)"
-                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                _uiState.update { it.copy(isLoading = false, registerErrorMessage = msg) }
                 onError(msg)
             } catch (e: Exception) {
                 val errorMsg = e.localizedMessage ?: "Register failed (From dunno?)"
-                _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                _uiState.update { it.copy(isLoading = false, registerErrorMessage = errorMsg) }
                 onError(errorMsg)
             }
         }
@@ -177,7 +179,7 @@ class AuthViewModel : ViewModel() {
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update { it.copy(isLoading = true, updateErrorMessage = null) }
 
         viewModelScope.launch {
             try {
@@ -198,7 +200,7 @@ class AuthViewModel : ViewModel() {
                 onSuccess()
             } catch (e: Exception) {
                 val errorMsg = e.localizedMessage ?: "Failed to update profile"
-                _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                _uiState.update { it.copy(isLoading = false, updateErrorMessage = errorMsg) }
                 onError(errorMsg)
             }
         }

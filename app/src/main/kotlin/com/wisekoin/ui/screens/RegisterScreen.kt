@@ -250,6 +250,17 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                if (uiState.registerErrorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = uiState.registerErrorMessage ?: "",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 SubmitRegisterButton(
@@ -259,9 +270,6 @@ fun RegisterScreen(
                     password = password,
                     phone = phone,
                     onRegisterSuccess = onRegisterSuccess,
-                    onError = { msg ->
-                            Toast.makeText(context, "Submitting register error: $msg", Toast.LENGTH_SHORT).show()
-                    },
                     enabledButton = !uiState.isLoading
                 )
             }
@@ -299,7 +307,6 @@ fun SubmitRegisterButton(
     password: String,
     phone: String,
     onRegisterSuccess: () -> Unit,
-    onError: (String) -> Unit,
     enabledButton: Boolean
 ) {
     Button(
@@ -310,7 +317,7 @@ fun SubmitRegisterButton(
                 password = password,
                 phone = phone,
                 onSuccess = onRegisterSuccess,
-                onError = onError
+                onError = {}
             )
         },
         enabled = enabledButton,

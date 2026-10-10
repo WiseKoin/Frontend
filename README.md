@@ -29,7 +29,7 @@ Jetpack Compose mobile application for the WiseKoin financial management platfor
 - **Networking:** Retrofit 2.11.0 + OkHttp 4.12.0
 - **Image Loading:** Coil 2.7.0
 - **Camera:** CameraX 1.3.4
-- **Local Storage:** SharedPreferences (TokenManager)
+- **Local Storage:** Android Keystore-backed encrypted session storage (TokenManager)
 - **Build Tool:** Gradle 9.2.1 (AGP 9.2.1)
 
 ## Screens
@@ -52,11 +52,19 @@ Jetpack Compose mobile application for the WiseKoin financial management platfor
 
 ## API Integration
 
-The app communicates with the backend at `http://10.0.2.2:8080/` (emulator) or the device's LAN IP (physical device). Configure the base URL in `data/remote/RetrofitClient.kt`.
+Debug builds default to `http://10.0.2.2:8080/` for the Android emulator. Override that value with the `WISEKOIN_DEBUG_API_BASE_URL` environment variable or Gradle property when using a physical device or another development backend.
+
+Release builds require `WISEKOIN_API_BASE_URL` to be an HTTPS URL ending in `/`. Set it as an environment variable locally and as the `WISEKOIN_API_BASE_URL` repository secret for the release workflow. Release builds fail fast when it is absent or invalid.
+
+```bash
+# PowerShell example
+$env:WISEKOIN_API_BASE_URL = "https://api.example.com/"
+./gradlew assembleRelease bundleRelease
+```
 
 ### API Services
 
-- `AuthApiService` — login, register
+- `AuthApiService` — login, register, refresh, logout
 - `UserApiService` — get/update profile
 - `WalletApiService` — list/create wallets
 - `CategoryApiService` — CRUD categories
@@ -64,7 +72,7 @@ The app communicates with the backend at `http://10.0.2.2:8080/` (emulator) or t
 - `DebtApiService` — CRUD debts, repayments
 - `GoalApiService` — CRUD goals, fund goals
 - `ReceiptApiService` — upload receipt image for AI extraction
-- `RetrofitClient` — singleton with JWT interceptor
+- `RetrofitClient` — authenticated client with automatic single-retry token refresh
 
 ## Build and Run
 

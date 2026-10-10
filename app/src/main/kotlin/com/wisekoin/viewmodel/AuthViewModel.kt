@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.local.TokenManager
 import com.wisekoin.data.model.LoginRequest
+import com.wisekoin.data.model.RefreshTokenRequest
 import com.wisekoin.data.model.RegisterRequest
 import com.wisekoin.data.model.UpdateProfileRequest
 import com.wisekoin.data.model.UserResponseDto
 import com.wisekoin.data.remote.ErrorResponse
 import com.wisekoin.data.remote.RetrofitClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +39,7 @@ class AuthViewModel : ViewModel() {
 
     fun setTokenManager(manager: TokenManager) {
         this.tokenManager = manager
-        if (manager.hasToken()) {
+        if (manager.hasSession()) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoggedIn = true) }
                 fetchUser()
@@ -85,7 +87,7 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.authApi.login(LoginRequest(email, password))
-                tokenManager?.saveToken(response.accessToken)
+                tokenManager?.saveTokens(response.accessToken, response.refreshToken)
                 fetchUser()
                 onSuccess()
             } catch (e: Exception) {
@@ -116,7 +118,7 @@ class AuthViewModel : ViewModel() {
                 val response = RetrofitClient.authApi.register(
                     RegisterRequest(username = username, email = email, password = password, phone = phone)
                 )
-                tokenManager?.saveToken(response.accessToken)
+                tokenManager?.saveTokens(response.accessToken, response.refreshToken)
                 _uiState.update {
                     it.copy(
                         isLoggedIn = true,
@@ -150,16 +152,34 @@ class AuthViewModel : ViewModel() {
         onSuccess()
     }
 
-    fun logout() {
-        tokenManager?.clearToken()
-        _uiState.update {
-            it.copy(
-                isLoggedIn = false,
-                name = "Guest",
-                email = "",
-                password = "",
-                isLoading = false
-            )
+    fun logout(onComplete: () -> Unit = {}) {
+        val manager = tokenManager
+        val refreshToken = manager?.getRefreshToken()
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch {
+            try {
+                if (!refreshToken.isNullOrBlank()) {
+                    RetrofitClient.authApi.logout(RefreshTokenRequest(refreshToken))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // Local logout must still complete if the API is unavailable.
+            } finally {
+                manager?.clearTokens()
+                _uiState.update {
+                    it.copy(
+                        isLoggedIn = false,
+                        currentUser = null,
+                        name = "Guest",
+                        email = "",
+                        password = "",
+                        isLoading = false
+                    )
+                }
+                onComplete()
+            }
         }
     }
 
@@ -220,8 +240,19 @@ class AuthViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                val fallback = _uiState.value.email.substringBefore("@").replaceFirstChar { it.uppercase() }
-                _uiState.update { it.copy(name = fallback, isLoading = false) }
+                if (tokenManager?.hasSession() == true) {
+                    val fallback = _uiState.value.email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                    _uiState.update { it.copy(name = fallback, isLoading = false) }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoggedIn = false,
+                            currentUser = null,
+                            name = "Guest",
+                            isLoading = false
+                        )
+                    }
+                }
             }
         }
     }

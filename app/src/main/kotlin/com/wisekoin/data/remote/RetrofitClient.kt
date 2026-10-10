@@ -1,9 +1,16 @@
 package com.wisekoin.data.remote
 
+import com.wisekoin.BuildConfig
 import com.google.gson.Gson
+import com.wisekoin.data.local.SessionTokenStore
 import com.wisekoin.data.local.TokenManager
-import okhttp3.Interceptor
+import com.wisekoin.data.model.AuthResponse
+import com.wisekoin.data.model.RefreshTokenRequest
+import okhttp3.Authenticator
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -15,8 +22,7 @@ data class ErrorResponse(
 )
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:8080/"
-    private var tokenManager: TokenManager? = null
+    private var tokenManager: SessionTokenStore? = null
     private val gson = Gson()
 
     fun init(tokenManager: TokenManager) {
@@ -26,7 +32,11 @@ object RetrofitClient {
     fun getGson(): Gson = gson
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
     }
 
 //    private val errorInterceptor = Interceptor { chain ->
@@ -46,34 +56,74 @@ object RetrofitClient {
 //        response
 //    }
 
-    private val okHttpClient by lazy {
-        OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .addInterceptor { chain ->
-                val original = chain.request()
-                val requestBuilder = original.newBuilder()
-                val token = tokenManager?.getToken()
-                if (!token.isNullOrEmpty()) {
-                    requestBuilder.addHeader("Authorization", "Bearer $token")
-                }
-                chain.proceed(requestBuilder.build())
-            }
-            .build()
+    private fun baseClientBuilder(): OkHttpClient.Builder = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+
+    private val unauthenticatedClient by lazy {
+        baseClientBuilder().build()
     }
 
-    private val retrofit by lazy {
+    private val unauthenticatedRetrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .baseUrl(BuildConfig.API_BASE_URL)
+            .client(unauthenticatedClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
     val authApi: AuthApiService by lazy {
-        retrofit.create(AuthApiService::class.java)
+        unauthenticatedRetrofit.create(AuthApiService::class.java)
+    }
+
+    private val okHttpClient by lazy {
+        val sessionStore = checkNotNull(tokenManager) {
+            "RetrofitClient.init must be called before accessing an authenticated API"
+        }
+
+        baseClientBuilder()
+            .addInterceptor { chain ->
+                val token = sessionStore.getAccessToken()
+                val request = if (token.isNullOrBlank() || chain.request().header("Authorization") != null) {
+                    chain.request()
+                } else {
+                    chain.request().newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                }
+                chain.proceed(request)
+            }
+            .authenticator(
+                RefreshTokenAuthenticator(
+                    tokenStore = sessionStore,
+                    refreshTokens = ::refreshTokens
+                )
+            )
+            .build()
+    }
+
+    private fun refreshTokens(refreshToken: String): AuthResponse? {
+        return try {
+            val response = authApi.refresh(RefreshTokenRequest(refreshToken)).execute()
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                response.errorBody()?.close()
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private val retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.API_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
     }
 
     val receiptApi: ReceiptApiService by lazy {
@@ -103,4 +153,54 @@ object RetrofitClient {
     val debtApi: DebtApiService by lazy {
         retrofit.create(DebtApiService::class.java)
     }
+}
+
+internal class RefreshTokenAuthenticator(
+    private val tokenStore: SessionTokenStore,
+    private val refreshTokens: (String) -> AuthResponse?
+) : Authenticator {
+    private val refreshLock = Any()
+
+    override fun authenticate(route: Route?, response: Response): Request? {
+        if (response.responseCount() >= 2) return null
+
+        val requestToken = response.request.header("Authorization")
+            ?.removePrefix("Bearer ")
+            ?.takeIf { it.isNotBlank() }
+
+        return synchronized(refreshLock) {
+            val latestAccessToken = tokenStore.getAccessToken()
+            if (!latestAccessToken.isNullOrBlank() && latestAccessToken != requestToken) {
+                return@synchronized response.request.withBearerToken(latestAccessToken)
+            }
+
+            val refreshToken = tokenStore.getRefreshToken()
+            if (refreshToken.isNullOrBlank()) {
+                tokenStore.clearTokens()
+                return@synchronized null
+            }
+
+            val refreshed = refreshTokens(refreshToken)
+            if (refreshed == null || refreshed.accessToken.isBlank() || refreshed.refreshToken.isBlank()) {
+                tokenStore.clearTokens()
+                return@synchronized null
+            }
+
+            tokenStore.saveTokens(refreshed.accessToken, refreshed.refreshToken)
+            response.request.withBearerToken(refreshed.accessToken)
+        }
+    }
+}
+
+private fun Request.withBearerToken(token: String): Request =
+    newBuilder().header("Authorization", "Bearer $token").build()
+
+private fun Response.responseCount(): Int {
+    var count = 1
+    var current = priorResponse
+    while (current != null) {
+        count++
+        current = current.priorResponse
+    }
+    return count
 }

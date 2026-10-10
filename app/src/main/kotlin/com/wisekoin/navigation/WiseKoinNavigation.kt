@@ -151,11 +151,11 @@ fun WiseKoinNavGraph(
             ProfileScreen(
                 viewModel = authViewModel,
                 onLogoutClick = {
-                    authViewModel.logout()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Overview.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                    authViewModel.logout {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Overview.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 },
                 onLoginClick = {

@@ -78,12 +78,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          API_BASE_URL: ${{ secrets.WISEKOIN_API_BASE_URL }}
         run: |
           missing=()
           [[ -z "${KEYSTORE_BASE64}" ]] && missing+=(ANDROID_KEYSTORE_BASE64)
           [[ -z "${KEYSTORE_PASSWORD}" ]] && missing+=(ANDROID_KEYSTORE_PASSWORD)
           [[ -z "${KEY_ALIAS}" ]] && missing+=(ANDROID_KEY_ALIAS)
           [[ -z "${KEY_PASSWORD}" ]] && missing+=(ANDROID_KEY_PASSWORD)
+          [[ -z "${API_BASE_URL}" ]] && missing+=(WISEKOIN_API_BASE_URL)
 
           if (( ${#missing[@]} > 0 )); then
             echo "Missing required repository secrets: ${missing[*]}" >&2
@@ -91,6 +93,8 @@ jobs:
           fi
 
       - name: Run release checks and build unsigned artifacts
+        env:
+          WISEKOIN_API_BASE_URL: ${{ secrets.WISEKOIN_API_BASE_URL }}
         run: >-
           ./gradlew --no-daemon --stacktrace
           lintDebug testDebugUnitTest assembleRelease bundleRelease

@@ -1,6 +1,40 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+}
+
+fun String.asBuildConfigString(): String =
+    "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+fun requireValidApiBaseUrl(name: String, value: String): String {
+    val uri = runCatching { URI(value) }
+        .getOrElse { throw GradleException("$name must be a valid absolute URL.", it) }
+    if (uri.scheme != "https" || uri.host.isNullOrBlank() || !value.endsWith('/')) {
+        throw GradleException("$name must be an HTTPS URL ending with '/'.")
+    }
+    return value
+}
+
+val debugApiBaseUrl = providers.gradleProperty("WISEKOIN_DEBUG_API_BASE_URL")
+    .orElse(providers.environmentVariable("WISEKOIN_DEBUG_API_BASE_URL"))
+    .getOrElse("http://10.0.2.2:8080/")
+
+val configuredReleaseApiBaseUrl = providers.gradleProperty("WISEKOIN_API_BASE_URL")
+    .orElse(providers.environmentVariable("WISEKOIN_API_BASE_URL"))
+    .orNull
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+val releaseApiBaseUrl = when {
+    configuredReleaseApiBaseUrl != null ->
+        requireValidApiBaseUrl("WISEKOIN_API_BASE_URL", configuredReleaseApiBaseUrl)
+    releaseBuildRequested ->
+        throw GradleException(
+            "WISEKOIN_API_BASE_URL is required for release builds and must be an HTTPS URL ending with '/'."
+        )
+    else -> "https://invalid.local/"
 }
 
 android {
@@ -22,7 +56,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", debugApiBaseUrl.asBuildConfigString())
+        }
         release {
+            buildConfigField("String", "API_BASE_URL", releaseApiBaseUrl.asBuildConfigString())
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -37,6 +75,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }

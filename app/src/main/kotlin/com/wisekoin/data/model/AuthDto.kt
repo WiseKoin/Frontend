@@ -22,5 +22,16 @@ data class RegisterRequest(
 
 data class AuthResponse(
     @SerializedName("accessToken")
-    val accessToken: String
+    val accessToken: String,
+    @SerializedName("refreshToken")
+    val refreshToken: String,
+    @SerializedName("tokenType")
+    val tokenType: String,
+    @SerializedName("expiresIn")
+    val expiresIn: Long
+)
+
+data class RefreshTokenRequest(
+    @SerializedName("refreshToken")
+    val refreshToken: String
 )

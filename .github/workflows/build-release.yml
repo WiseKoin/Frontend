@@ -1,0 +1,191 @@
+name: Build Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional v-prefixed tag for publishing a GitHub Release; leave blank to build artifacts only"
+        required: false
+        type: string
+      prerelease:
+        description: "Mark a manually published GitHub Release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3g
+
+jobs:
+  release:
+    name: Test, build, sign, and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Resolve release metadata
+        id: metadata
+        shell: bash
+        env:
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+          else
+            release_tag="${MANUAL_RELEASE_TAG}"
+          fi
+
+          if [[ -n "${release_tag}" && ! "${release_tag}" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "release_tag must start with v and contain only letters, numbers, dots, underscores, or hyphens." >&2
+            exit 1
+          fi
+
+          artifact_version="${release_tag:-run-${GITHUB_RUN_NUMBER}}"
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_version=${artifact_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify signing secrets
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [[ -z "${KEYSTORE_BASE64}" ]] && missing+=(ANDROID_KEYSTORE_BASE64)
+          [[ -z "${KEYSTORE_PASSWORD}" ]] && missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [[ -z "${KEY_ALIAS}" ]] && missing+=(ANDROID_KEY_ALIAS)
+          [[ -z "${KEY_PASSWORD}" ]] && missing+=(ANDROID_KEY_PASSWORD)
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing required repository secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Run release checks and build unsigned artifacts
+        run: >-
+          ./gradlew --no-daemon --stacktrace
+          lintDebug testDebugUnitTest assembleRelease bundleRelease
+
+      - name: Sign and verify APK and app bundle
+        id: signing
+        shell: bash
+        env:
+          ARTIFACT_VERSION: ${{ steps.metadata.outputs.artifact_version }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          keystore_path="${RUNNER_TEMP}/wisekoin-release.jks"
+          aligned_apk="${RUNNER_TEMP}/wisekoin-release-aligned.apk"
+          output_dir="${GITHUB_WORKSPACE}/release-artifacts"
+          unsigned_apk="${GITHUB_WORKSPACE}/app/build/outputs/apk/release/app-release-unsigned.apk"
+          unsigned_aab="${GITHUB_WORKSPACE}/app/build/outputs/bundle/release/app-release.aab"
+          signed_apk="${output_dir}/WiseKoin-${ARTIFACT_VERSION}.apk"
+          signed_aab="${output_dir}/WiseKoin-${ARTIFACT_VERSION}.aab"
+
+          trap 'rm -f "${keystore_path}" "${aligned_apk}"' EXIT
+          mkdir -p "${output_dir}"
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+
+          if [[ ! -f "${unsigned_apk}" || ! -f "${unsigned_aab}" ]]; then
+            echo "Gradle did not produce the expected release APK and AAB." >&2
+            exit 1
+          fi
+
+          build_tools_dir="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V | tail -n 1)"
+          if [[ -z "${build_tools_dir}" ]]; then
+            echo "No Android SDK build-tools installation was found." >&2
+            exit 1
+          fi
+
+          "${build_tools_dir}/zipalign" -f -v 4 "${unsigned_apk}" "${aligned_apk}"
+          "${build_tools_dir}/apksigner" sign \
+            --ks "${keystore_path}" \
+            --ks-key-alias "${KEY_ALIAS}" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --out "${signed_apk}" \
+            "${aligned_apk}"
+          "${build_tools_dir}/apksigner" verify --verbose --print-certs "${signed_apk}"
+
+          jarsigner \
+            -keystore "${keystore_path}" \
+            -storepass:env KEYSTORE_PASSWORD \
+            -keypass:env KEY_PASSWORD \
+            -signedjar "${signed_aab}" \
+            "${unsigned_aab}" \
+            "${KEY_ALIAS}"
+          jarsigner -verify -verbose -certs "${signed_aab}"
+
+          cd "${output_dir}"
+          sha256sum "$(basename "${signed_apk}")" "$(basename "${signed_aab}")" > SHA256SUMS.txt
+
+          echo "output_dir=${output_dir}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload signed release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wisekoin-${{ steps.metadata.outputs.artifact_version }}
+          path: ${{ steps.signing.outputs.output_dir }}/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish GitHub Release
+        if: steps.metadata.outputs.release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          OUTPUT_DIR: ${{ steps.signing.outputs.output_dir }}
+          PRERELEASE: ${{ inputs.prerelease || false }}
+        run: |
+          set -euo pipefail
+
+          prerelease_args=()
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${OUTPUT_DIR}"/* --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${OUTPUT_DIR}"/* \
+              --target "${GITHUB_SHA}" \
+              --title "WiseKoin ${RELEASE_TAG}" \
+              --generate-notes \
+              "${prerelease_args[@]}"
+          fi
+

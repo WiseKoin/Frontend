@@ -326,11 +326,11 @@ fun WiseKoinNavGraph(
             route = Screen.AddFunds.route,
             arguments = listOf(navArgument("goalId") { type = NavType.LongType })
         ) { backStackEntry ->
+            val walletViewModel: WalletViewModel = viewModel()
             GoalFundingScreen(
                 goalId = backStackEntry.arguments?.getLong("goalId") ?: 0L,
                 goalViewModel = goalViewModel,
-                categoryViewModel = categoryViewModel,
-                isLoggedIn = authUiState.isLoggedIn,
+                walletViewModel = walletViewModel,
                 onClose = { navController.popBackStack() }
             )
         }

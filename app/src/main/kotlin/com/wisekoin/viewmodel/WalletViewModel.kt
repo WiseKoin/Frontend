@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -49,6 +50,14 @@ class WalletViewModel : ViewModel() {
         }
     }
 
+    fun loadWallets() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            fetchWallets()
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
     private suspend fun fetchWallets() {
         try {
             val summary = RetrofitClient.walletApi.getWallets()
@@ -58,6 +67,8 @@ class WalletViewModel : ViewModel() {
                     wallets = summary.wallets
                 )
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             _uiState.update { it.copy(error = e.localizedMessage) }
         }

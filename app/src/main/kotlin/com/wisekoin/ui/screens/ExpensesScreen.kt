@@ -132,8 +132,8 @@ fun ExpensesScreen(
         .map { tx ->
             Transaction(
                 id = tx.id.toString(),
-                title = tx.note ?: tx.category.name,
-                category = tx.category.name,
+                title = tx.note ?: tx.category?.name ?: tx.goal?.name ?: "Transfer",
+                category = tx.category?.name ?: tx.goal?.let { "Savings goal" } ?: "Transfer",
                 amount = "-${tx.amount.toLong().formatStringVND()}đ",
                 isExpense = true,
                 time = formatTransactionTime(tx.transactionDate),

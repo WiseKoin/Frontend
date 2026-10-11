@@ -1,3 +1,27 @@
 <resources>
     <string name="app_name">WiseKoin</string>
+    <string name="goal_funding_title">Add funds to goal</string>
+    <string name="back">Back</string>
+    <string name="goal_not_found_message">This goal could not be found. Return to Savings and try again.</string>
+    <string name="invalid_contribution_amount">Enter a contribution amount greater than zero.</string>
+    <string name="contribution_limit_message">You can contribute up to %1$s, the amount remaining on this goal.</string>
+    <string name="select_wallet_message">Select a wallet to fund this goal.</string>
+    <string name="insufficient_balance_message">%1$s has %2$s available, but this contribution requires %3$s. Choose another wallet or enter a smaller amount.</string>
+    <string name="goal_funding_default_note">Fund goal - %1$s</string>
+    <string name="contribution_success">Funds added to your goal.</string>
+    <string name="goal_progress_percent">%1$d%% complete</string>
+    <string name="contribution_amount_label">Contribution amount (VND)</string>
+    <string name="use_remaining_amount">Use remaining: %1$s</string>
+    <string name="wallet">Wallet</string>
+    <string name="no_wallet_available">No wallet available</string>
+    <string name="note">Note</string>
+    <string name="note_optional">Note (optional)</string>
+    <string name="contribute_to_goal">Contribute to goal</string>
+    <string name="insufficient_balance_title">Not enough in this wallet</string>
+    <string name="contribution_problem_title">Unable to add funds</string>
+    <string name="choose_another_wallet">Choose another wallet</string>
+    <string name="adjust_amount">Adjust amount</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="wallets_title">Your wallets</string>
+    <string name="wallets_empty">Create a wallet to see its balance here.</string>
 </resources>

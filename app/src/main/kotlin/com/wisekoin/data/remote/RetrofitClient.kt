@@ -17,6 +17,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 data class ErrorResponse(
+    val code: String? = null,
     val error: String? = null,
     val message: String? = null
 )

@@ -30,3 +30,12 @@ data class GoalResponseDto(
     @SerializedName("progressPercent")
     val progressPercent: BigDecimal
 )
+
+data class GoalFundRequestDto(
+    @SerializedName("walletId")
+    val walletId: Long,
+    @SerializedName("amount")
+    val amount: BigDecimal,
+    @SerializedName("note")
+    val note: String? = null
+)

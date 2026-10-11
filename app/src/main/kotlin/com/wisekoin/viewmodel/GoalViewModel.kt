@@ -4,14 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.GoalRequestDto
 import com.wisekoin.data.model.GoalResponseDto
-import com.wisekoin.data.model.TransactionRequest
+import com.wisekoin.data.model.GoalFundRequestDto
 import com.wisekoin.data.remote.ErrorResponse
 import com.wisekoin.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import java.math.BigDecimal
 
 data class GoalUiState(
@@ -19,7 +21,19 @@ data class GoalUiState(
     val isLoading: Boolean = false,
     val isCreating: Boolean = false,
     val isFunding: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val fundingError: GoalFundingError? = null
+)
+
+enum class GoalFundingErrorType {
+    INSUFFICIENT_BALANCE,
+    CONTRIBUTION_LIMIT,
+    GENERAL
+}
+
+data class GoalFundingError(
+    val type: GoalFundingErrorType,
+    val message: String
 )
 
 class GoalViewModel : ViewModel() {
@@ -81,33 +95,66 @@ class GoalViewModel : ViewModel() {
     fun fundGoal(
         goalId: Long,
         walletId: Long,
-        categoryId: Long,
         amount: BigDecimal,
         note: String?,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        onSuccess: () -> Unit
     ) {
-        _uiState.update { it.copy(isFunding = true, errorMessage = null) }
+        _uiState.update { it.copy(isFunding = true, errorMessage = null, fundingError = null) }
         viewModelScope.launch {
             try {
-                RetrofitClient.transactionApi.createTransaction(
-                    TransactionRequest(
+                val updatedGoal = RetrofitClient.goalApi.fundGoal(
+                    goalId = goalId,
+                    request = GoalFundRequestDto(
                         walletId = walletId,
-                        categoryId = categoryId,
                         amount = amount,
-                        type = "TRANSFER",
-                        note = note,
-                        goalId = goalId
+                        note = note
                     )
                 )
-                loadGoals()
-                _uiState.update { it.copy(isFunding = false) }
+                _uiState.update { state ->
+                    state.copy(
+                        goals = state.goals.map { goal ->
+                            if (goal.id == updatedGoal.id) updatedGoal else goal
+                        },
+                        isFunding = false
+                    )
+                }
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = extractBackendMessage(e)
-                _uiState.update { it.copy(isFunding = false, errorMessage = errorMsg) }
-                onError(errorMsg)
+                val fundingError = extractFundingError(e)
+                _uiState.update {
+                    it.copy(
+                        isFunding = false,
+                        errorMessage = fundingError.message,
+                        fundingError = fundingError
+                    )
+                }
             }
+        }
+    }
+
+    private fun extractFundingError(error: Exception): GoalFundingError {
+        val response = (error as? HttpException)?.response()?.errorBody()?.string()?.let { body ->
+            runCatching {
+                RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)
+            }.getOrNull()
+        }
+        val serverMessage = response?.error ?: response?.message.orEmpty()
+        return when {
+            response?.code == "INSUFFICIENT_BALANCE" ||
+                serverMessage.contains("insufficient", ignoreCase = true) -> GoalFundingError(
+                    GoalFundingErrorType.INSUFFICIENT_BALANCE,
+                    "This wallet does not have enough available balance for the contribution."
+                )
+            serverMessage.contains("remaining goal amount", ignoreCase = true) -> GoalFundingError(
+                GoalFundingErrorType.CONTRIBUTION_LIMIT,
+                "The contribution cannot be greater than the amount remaining on this goal."
+            )
+            else -> GoalFundingError(
+                GoalFundingErrorType.GENERAL,
+                "We couldn't add funds to this goal. Please try again."
+            )
         }
     }
 
@@ -139,6 +186,6 @@ class GoalViewModel : ViewModel() {
     }
 
     fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, fundingError = null) }
     }
 }

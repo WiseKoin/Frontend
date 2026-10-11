@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.data.model.TransactionResponseDto
+import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,9 @@ data class WalletUiState(
     val recentTransactions: List<TransactionResponseDto> = emptyList(),
     val monthlyStats: List<MonthlyStatsDto> = emptyList(),
     val isLoading: Boolean = false,
+    val isCreatingWallet: Boolean = false,
     val error: String? = null,
+    val walletCreationFailed: Boolean = false,
     val currentMonthIncome: BigDecimal = BigDecimal.ZERO,
     val currentMonthExpense: BigDecimal = BigDecimal.ZERO
 )
@@ -56,6 +59,50 @@ class WalletViewModel : ViewModel() {
             fetchWallets()
             _uiState.update { it.copy(isLoading = false) }
         }
+    }
+
+    fun createWallet(
+        name: String,
+        type: String,
+        initialBalance: BigDecimal,
+        onSuccess: () -> Unit
+    ) {
+        if (_uiState.value.isCreatingWallet) return
+        _uiState.update { it.copy(isCreatingWallet = true, walletCreationFailed = false) }
+        viewModelScope.launch {
+            try {
+                RetrofitClient.walletApi.createWallet(
+                    WalletRequest(
+                        name = name.trim(),
+                        walletType = type,
+                        initialBalance = initialBalance
+                    )
+                )
+                val summary = RetrofitClient.walletApi.getWallets()
+                _uiState.update {
+                    it.copy(
+                        totalBalance = summary.totalBalance,
+                        wallets = summary.wallets,
+                        isCreatingWallet = false,
+                        walletCreationFailed = false
+                    )
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isCreatingWallet = false,
+                        walletCreationFailed = true
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearWalletCreationError() {
+        _uiState.update { it.copy(walletCreationFailed = false) }
     }
 
     private suspend fun fetchWallets() {

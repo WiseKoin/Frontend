@@ -24,4 +24,21 @@
     <string name="dismiss">Dismiss</string>
     <string name="wallets_title">Your wallets</string>
     <string name="wallets_empty">Create a wallet to see its balance here.</string>
+    <string name="add_wallet">Add Wallet</string>
+    <string name="create_wallet_title">Create new wallet</string>
+    <string name="wallet_name">Wallet name</string>
+    <string name="wallet_type">Wallet type</string>
+    <string name="initial_balance_vnd">Initial balance (VND)</string>
+    <string name="wallet_name_required">Enter a wallet name.</string>
+    <string name="invalid_initial_balance">Enter a valid balance of zero or more.</string>
+    <string name="wallet_creation_failed">We couldn’t create this wallet. Check your connection and try again.</string>
+    <string name="wallet_type_cash">Cash</string>
+    <string name="wallet_type_bank">Bank</string>
+    <string name="wallet_type_e_wallet">E-wallet</string>
+    <string name="wallet_type_credit_card">Credit card</string>
+    <string name="create">Create</string>
+    <string name="cancel">Cancel</string>
+    <string name="cash_flow">Cash Flow</string>
+    <string name="income">Income</string>
+    <string name="expense">Expense</string>
 </resources>

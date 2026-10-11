@@ -6,16 +6,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +29,7 @@ import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.WalletViewModel
+import java.math.BigDecimal
 
 @Composable
 fun OverviewScreen(
@@ -36,6 +41,7 @@ fun OverviewScreen(
     onProfileClick: () -> Unit = {}
 ) {
     val state by walletViewModel.uiState.collectAsState()
+    var showCreateWalletDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
@@ -101,7 +107,9 @@ fun OverviewScreen(
             item {
                 WalletOverviewSection(
                     wallets = if (isLoggedIn) state.wallets else emptyList(),
-                    isLoading = isLoggedIn && state.isLoading
+                    isLoading = isLoggedIn && state.isLoading,
+                    canAddWallet = isLoggedIn,
+                    onAddWallet = { showCreateWalletDialog = true }
                 )
             }
 
@@ -149,17 +157,65 @@ fun OverviewScreen(
             }
         }
     }
+
+    if (showCreateWalletDialog) {
+        OverviewCreateWalletDialog(
+            isSubmitting = state.isCreatingWallet,
+            submissionFailed = state.walletCreationFailed,
+            onDismiss = {
+                walletViewModel.clearWalletCreationError()
+                showCreateWalletDialog = false
+            },
+            onCreate = { name, type, balance ->
+                walletViewModel.createWallet(name, type, balance) {
+                    showCreateWalletDialog = false
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun WalletOverviewSection(wallets: List<WalletResponseDto>, isLoading: Boolean) {
+private fun WalletOverviewSection(
+    wallets: List<WalletResponseDto>,
+    isLoading: Boolean,
+    canAddWallet: Boolean,
+    onAddWallet: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = stringResource(R.string.wallets_title),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextDark
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.wallets_title),
+                modifier = Modifier.weight(1f),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            Spacer(Modifier.width(12.dp))
+            Button(
+                onClick = onAddWallet,
+                enabled = canAddWallet,
+                modifier = Modifier.heightIn(min = 48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MintDark,
+                    contentColor = TextDark
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.add_wallet), fontWeight = FontWeight.Bold)
+            }
+        }
         when {
             isLoading && wallets.isEmpty() -> Box(
                 modifier = Modifier.fillMaxWidth().height(92.dp),
@@ -216,4 +272,134 @@ private fun WalletOverviewSection(wallets: List<WalletResponseDto>, isLoading: B
             }
         }
     }
+}
+
+@Composable
+private fun OverviewCreateWalletDialog(
+    isSubmitting: Boolean,
+    submissionFailed: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String, String, BigDecimal) -> Unit
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var selectedType by rememberSaveable { mutableStateOf("CASH") }
+    var initialBalance by rememberSaveable { mutableStateOf("") }
+    var validationError by rememberSaveable { mutableStateOf<Int?>(null) }
+    val walletTypes = listOf("CASH", "BANK", "E_WALLET", "CREDIT_CARD")
+
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        title = { Text(stringResource(R.string.create_wallet_title), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        validationError = null
+                    },
+                    label = { Text(stringResource(R.string.wallet_name)) },
+                    singleLine = true,
+                    enabled = !isSubmitting,
+                    isError = validationError == R.string.wallet_name_required,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    stringResource(R.string.wallet_type),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextLight
+                )
+                walletTypes.chunked(2).forEach { rowTypes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowTypes.forEach { type ->
+                            val selected = selectedType == type
+                            Button(
+                                onClick = { selectedType = type },
+                                enabled = !isSubmitting,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) BrandGreenDark else CandyBg,
+                                    contentColor = if (selected) Color.White else TextDark
+                                ),
+                                contentPadding = PaddingValues(horizontal = 6.dp)
+                            ) {
+                                Text(
+                                    stringResource(walletTypeLabel(type)),
+                                    fontSize = 11.sp,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = initialBalance,
+                    onValueChange = {
+                        initialBalance = formatAmount(it)
+                        validationError = null
+                    },
+                    label = { Text(stringResource(R.string.initial_balance_vnd)) },
+                    singleLine = true,
+                    enabled = !isSubmitting,
+                    isError = validationError == R.string.invalid_initial_balance,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                validationError?.let {
+                    Text(stringResource(it), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+                if (submissionFailed) {
+                    Text(
+                        stringResource(R.string.wallet_creation_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val balance = initialBalance.replace(",", "").toBigDecimalOrNull()
+                        ?: BigDecimal.ZERO.takeIf { initialBalance.isBlank() }
+                    when {
+                        name.isBlank() -> validationError = R.string.wallet_name_required
+                        balance == null || balance < BigDecimal.ZERO ->
+                            validationError = R.string.invalid_initial_balance
+                        else -> onCreate(name.trim(), selectedType, balance)
+                    }
+                },
+                enabled = !isSubmitting,
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(stringResource(R.string.create))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+private fun walletTypeLabel(type: String): Int = when (type) {
+    "BANK" -> R.string.wallet_type_bank
+    "E_WALLET" -> R.string.wallet_type_e_wallet
+    "CREDIT_CARD" -> R.string.wallet_type_credit_card
+    else -> R.string.wallet_type_cash
 }

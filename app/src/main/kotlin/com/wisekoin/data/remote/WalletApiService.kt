@@ -1,6 +1,7 @@
 package com.wisekoin.data.remote
 
 import com.wisekoin.data.model.WalletRequest
+import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.data.model.WalletSummaryResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -11,5 +12,5 @@ interface WalletApiService {
     suspend fun getWallets(): WalletSummaryResponseDto
 
     @POST("api/wallets")
-    suspend fun createWallet(@Body request: WalletRequest): WalletSummaryResponseDto
+    suspend fun createWallet(@Body request: WalletRequest): WalletResponseDto
 }

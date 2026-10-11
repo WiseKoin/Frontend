@@ -26,11 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wisekoin.R
 import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.ui.theme.*
 import java.math.BigDecimal
@@ -353,7 +355,11 @@ fun TotalBalanceCard(
     }
 }
 
-private data class ChartBarItem(val label: String, val amount: BigDecimal)
+private data class ChartBarItem(
+    val label: String,
+    val income: BigDecimal,
+    val expense: BigDecimal
+)
 
 @Composable
 fun CashFlowCard(
@@ -374,14 +380,14 @@ fun CashFlowCard(
                 val weekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                 (1..7).map { dow ->
                     val exp = weeklyData.find { it.dayOfWeek == dow }?.expense ?: BigDecimal.ZERO
-                    ChartBarItem(weekDays[dow - 1], exp)
+                    ChartBarItem(weekDays[dow - 1], BigDecimal.ZERO, exp)
                 }
             }
             isDaily -> {
                 val daysInMonth = LocalDate.now().lengthOfMonth()
                 (1..daysInMonth).map { d ->
                     val exp = dailyData.find { it.day == d }?.expense ?: BigDecimal.ZERO
-                    ChartBarItem("%02d".format(d), exp)
+                    ChartBarItem("%02d".format(d), BigDecimal.ZERO, exp)
                 }
             }
             isMonthly -> {
@@ -389,7 +395,8 @@ fun CashFlowCard(
                 stats.map { stat ->
                     ChartBarItem(
                         label = monthNames.getOrElse(stat.month - 1) { "" },
-                        amount = stat.totalExpense ?: BigDecimal.ZERO
+                        income = stat.totalIncome ?: BigDecimal.ZERO,
+                        expense = stat.totalExpense ?: BigDecimal.ZERO
                     )
                 }
             }
@@ -397,20 +404,23 @@ fun CashFlowCard(
                 val nowYear = LocalDate.now().year
                 val yearGrouped = stats.groupBy { it.year }
                 (nowYear - 10..nowYear).map { year ->
-                    val total = yearGrouped[year]
+                    val totalIncome = yearGrouped[year]
+                        ?.mapNotNull { it.totalIncome }
+                        ?.fold(BigDecimal.ZERO, BigDecimal::add) ?: BigDecimal.ZERO
+                    val totalExpense = yearGrouped[year]
                         ?.mapNotNull { it.totalExpense }
                         ?.fold(BigDecimal.ZERO, BigDecimal::add) ?: BigDecimal.ZERO
-                    ChartBarItem(year.toString(), total)
+                    ChartBarItem(year.toString(), totalIncome, totalExpense)
                 }
             }
             else -> {
                 val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-                monthNames.map { ChartBarItem(it, BigDecimal.ZERO) }
+                monthNames.map { ChartBarItem(it, BigDecimal.ZERO, BigDecimal.ZERO) }
             }
         }
     }
 
-    val maxExpense = chartItems.maxOfOrNull { it.amount } ?: BigDecimal.ONE
+    val maxAmount = chartItems.maxOfOrNull { maxOf(it.income, it.expense) } ?: BigDecimal.ONE
 
     Card(
         modifier = Modifier
@@ -427,7 +437,7 @@ fun CashFlowCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Cash Flow",
+                    text = stringResource(R.string.cash_flow),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
@@ -440,7 +450,19 @@ fun CashFlowCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CashFlowLegend(color = MintDark, label = stringResource(R.string.income))
+                Spacer(Modifier.width(14.dp))
+                CashFlowLegend(color = PrimaryRed, label = stringResource(R.string.expense))
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Bar Chart Area
             val rowModifier = if (isDaily) {
@@ -461,36 +483,27 @@ fun CashFlowCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 chartItems.forEach { item ->
-                    val heightRatio = if (maxExpense > BigDecimal.ZERO) {
-                        item.amount.divide(maxExpense, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
-                    } else 0f
+                    val incomeRatio = chartHeightRatio(item.income, maxAmount)
+                    val expenseRatio = chartHeightRatio(item.expense, maxAmount)
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxHeight()
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(if (isDaily) 28.dp else 20.dp)
                     ) {
-                        // Khu vực vẽ thanh cột: Chiếm toàn bộ không gian còn lại ở trên
-                        Box(
+                        Row(
                             modifier = Modifier
                                 .weight(1f)
-                                .width(if (isDaily) 12.dp else 18.dp),
-                            contentAlignment = Alignment.BottomCenter
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.Bottom
                         ) {
-                            if (heightRatio > 0f) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .fillMaxHeight(heightRatio)
-                                        .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp, bottomStart = 9.dp, bottomEnd = 9.dp))
-                                        .background(MintDark)
-                                )
-                            }
+                            CashFlowBar(incomeRatio, MintDark)
+                            CashFlowBar(expenseRatio, PrimaryRed)
                         }
 
-                        // Khoảng cách giữa cột và chữ
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        // Text nhãn: Luôn nằm ở dưới cùng và không bị cột đè
                         Text(
                             text = item.label,
                             fontSize = 10.sp,
@@ -503,6 +516,33 @@ fun CashFlowCard(
         }
     }
 }
+
+@Composable
+private fun CashFlowLegend(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(5.dp))
+        Text(label, fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun RowScope.CashFlowBar(heightRatio: Float, color: Color) {
+    Box(
+        modifier = Modifier
+            .width(8.dp)
+            .fillMaxHeight(heightRatio.coerceAtLeast(0.02f))
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (heightRatio > 0f) color else Color.Transparent)
+    )
+}
+
+private fun chartHeightRatio(amount: BigDecimal, maxAmount: BigDecimal): Float =
+    if (maxAmount > BigDecimal.ZERO) {
+        amount.divide(maxAmount, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
+    } else {
+        0f
+    }
 
 @Composable
 fun RecentTransactionsSection(transactions: List<Transaction> = sampleTransactions, onSeeAll: () -> Unit) {

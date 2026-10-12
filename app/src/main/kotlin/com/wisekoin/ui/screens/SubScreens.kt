@@ -1,5 +1,7 @@
 package com.wisekoin.ui.screens
 
+import com.wisekoin.ui.components.NetworkErrorBanner
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
@@ -83,8 +85,7 @@ fun VoiceRecordingScreen(
 
     LaunchedEffect(authUiState.isLoggedIn) {
         if (authUiState.isLoggedIn) {
-            walletViewModel.refresh()
-            categoryViewModel.loadCategories(uiState.editableType, true)
+            walletViewModel.loadWallets()
         }
     }
 
@@ -126,6 +127,19 @@ fun VoiceRecordingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (uiState.voiceResult != null) Arrangement.Top else Arrangement.Center
         ) {
+            walletUiState.error?.let { error ->
+                NetworkErrorBanner(message = error, onRetry = walletViewModel::loadWallets)
+                Spacer(Modifier.height(12.dp))
+            }
+            categoryUiState.errorMessage?.let { error ->
+                NetworkErrorBanner(
+                    message = error,
+                    onRetry = {
+                        categoryViewModel.loadCategories(uiState.editableType, authUiState.isLoggedIn)
+                    }
+                )
+                Spacer(Modifier.height(12.dp))
+            }
             if (uiState.voiceResult != null) {
                 // ==========================================
                 // RESULT STATE: AI Extracted Transaction

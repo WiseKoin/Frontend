@@ -44,6 +44,7 @@ import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.ui.components.AppTopBar
+import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
@@ -160,6 +161,12 @@ fun AddTransactionScreen(
             showDebtDueDatePicker = showDebtDueDatePicker,
             onDebtDueDatePickerOpen = { showDebtDueDatePicker = true }
         )
+        categoryUiState.errorMessage?.let { error ->
+            NetworkErrorBanner(
+                message = error,
+                onRetry = { categoryViewModel.loadCategories(selectedType, isLoggedIn) }
+            )
+        }
         CommonTransactionFields(
             walletName = selectedWalletName,
             walletId = selectedWalletId,

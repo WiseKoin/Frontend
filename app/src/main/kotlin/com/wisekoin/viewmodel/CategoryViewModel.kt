@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 data class CategoryUiState(
     val categories: List<CategoryResponse> = emptyList(),
@@ -22,6 +23,8 @@ data class CategoryUiState(
 class CategoryViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(CategoryUiState())
     val uiState: StateFlow<CategoryUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
+    private var loadingType: String? = null
 
     fun loadCategories(type: String, isLoggedIn: Boolean) {
         if (!isLoggedIn) {
@@ -36,8 +39,12 @@ class CategoryViewModel : ViewModel() {
             else -> "EXPENSE"
         }
 
+        if (loadJob?.isActive == true && loadingType == categoryTypeStr) return
+        loadJob?.cancel()
+        loadingType = categoryTypeStr
+
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             try {
                 val list = RetrofitClient.categoryApi.getCategoriesByType(categoryTypeStr)
                 _uiState.update { it.copy(categories = list, isLoading = false) }

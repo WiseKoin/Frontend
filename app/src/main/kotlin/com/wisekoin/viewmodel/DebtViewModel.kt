@@ -44,6 +44,7 @@ class DebtViewModel : ViewModel() {
     private val repaymentGate = SubmissionGate()
 
     fun loadDebts(status: String? = null) {
+        if (_uiState.value.isLoading) return
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {

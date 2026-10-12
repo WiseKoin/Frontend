@@ -52,6 +52,7 @@ class GoalViewModel : ViewModel() {
         get() = _uiState.value.goals.filter { it.status == "IN_PROGRESS" }
 
     fun loadGoals() {
+        if (_uiState.value.isLoading) return
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {

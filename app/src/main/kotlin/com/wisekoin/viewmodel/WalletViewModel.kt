@@ -75,10 +75,14 @@ class WalletViewModel : ViewModel() {
     }
 
     fun loadWallets() {
+        if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            fetchWallets()
-            _uiState.update { it.copy(isLoading = false) }
+            try {
+                fetchWallets()
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 

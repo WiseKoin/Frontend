@@ -37,6 +37,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.wisekoin.R
 import com.wisekoin.ui.components.AppTopBar
+import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
@@ -56,6 +57,7 @@ fun ConfirmReceiptScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
+    val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
     val isLoggedIn = authUiState.isLoggedIn
     val context = LocalContext.current
     var selectedWalletId by remember { mutableStateOf<Long?>(null) }
@@ -151,6 +153,14 @@ fun ConfirmReceiptScreen(
             categoryViewModel = categoryViewModel,
             isLoggedIn = isLoggedIn
         )
+
+        categoryUiState.errorMessage?.let { error ->
+            Spacer(modifier = Modifier.height(12.dp))
+            NetworkErrorBanner(
+                message = error,
+                onRetry = { categoryViewModel.loadCategories("Expense", isLoggedIn) }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

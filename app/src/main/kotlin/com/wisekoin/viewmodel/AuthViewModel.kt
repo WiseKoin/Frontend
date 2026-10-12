@@ -2,7 +2,7 @@ package com.wisekoin.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wisekoin.data.local.TokenManager
+import com.wisekoin.data.local.SessionTokenStore
 import com.wisekoin.data.model.LoginRequest
 import com.wisekoin.data.model.RefreshTokenRequest
 import com.wisekoin.data.model.RegisterRequest
@@ -25,28 +25,86 @@ data class AuthUiState(
     val avatarUrl: String = "https://lh3.googleusercontent.com/aida-public/AB6AXuAvZLwLc8DTKzGGRrKq1WOp54IgsHb5C9gRSqjUlBv_xmhBsjyJro6RV5bh6tEEr27KHFYEB3HD5GJ_nVoJtWJHkjLNhCWqS3mi7TPCVUkwM0mQ2DT6icCYuGjo0hFRF0P5qP5bj6fHaGdx4ZyT57CHAWMX4ZciqJwkYAc88NUwzWebC7-lnAN-6ps1ZieMqDjK0vlIBgAGlZaTL_wN0P85oGyONEChyuDc153m7n9zyAARuKqyBorM9Q",
     val isLoggedIn: Boolean = false,
     val currentUser: UserResponseDto? = null,
+    val sessionStatus: SessionStatus = SessionStatus.RESOLVING,
+    val sessionResolutionFailed: Boolean = false,
+    val sessionExpiryVersion: Int = 0,
     val isLoading: Boolean = false,
     val registerErrorMessage: String? = null,
     val loginErrorMessage: String? = null,
     val updateErrorMessage: String? = null
 )
 
+enum class SessionStatus {
+    RESOLVING,
+    AUTHENTICATED,
+    GUEST,
+    ERROR
+}
+
 class AuthViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    private var tokenManager: TokenManager? = null
+    private var tokenManager: SessionTokenStore? = null
 
-    fun setTokenManager(manager: TokenManager) {
+    fun setTokenManager(manager: SessionTokenStore) {
         this.tokenManager = manager
         if (manager.hasSession()) {
-            viewModelScope.launch {
-                _uiState.update { it.copy(isLoggedIn = true) }
-                fetchUser()
-            }
+            resolveStoredSession()
         } else {
-            _uiState.update { it.copy(isLoggedIn = false, name = "Guest", currentUser = null) }
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = false,
+                    name = "Guest",
+                    currentUser = null,
+                    sessionStatus = SessionStatus.GUEST,
+                    sessionResolutionFailed = false,
+                    isLoading = false
+                )
+            }
         }
+    }
+
+    fun retrySessionResolution() {
+        if (tokenManager?.hasSession() == true) {
+            resolveStoredSession()
+        } else {
+            onSessionExpired()
+        }
+    }
+
+    fun onSessionExpired() {
+        tokenManager?.clearTokens()
+        _uiState.update { current ->
+            val alreadyExpired = current.sessionStatus == SessionStatus.GUEST &&
+                current.sessionExpiryVersion > 0
+            current.copy(
+                isLoggedIn = false,
+                currentUser = null,
+                name = "Guest",
+                password = "",
+                isLoading = false,
+                sessionStatus = SessionStatus.GUEST,
+                sessionResolutionFailed = false,
+                sessionExpiryVersion = if (alreadyExpired) {
+                    current.sessionExpiryVersion
+                } else {
+                    current.sessionExpiryVersion + 1
+                }
+            )
+        }
+    }
+
+    private fun resolveStoredSession() {
+        _uiState.update {
+            it.copy(
+                isLoggedIn = false,
+                isLoading = true,
+                sessionStatus = SessionStatus.RESOLVING,
+                sessionResolutionFailed = false
+            )
+        }
+        fetchUser(isSessionResolution = true)
     }
 
     fun updateEmail(email: String) {
@@ -88,8 +146,7 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.authApi.login(LoginRequest(email, password))
                 tokenManager?.saveTokens(response.accessToken, response.refreshToken)
-                fetchUser()
-                onSuccess()
+                fetchUser(isSessionResolution = true, onSuccess = onSuccess)
             } catch (e: Exception) {
                 val errorMsg = e.localizedMessage ?: "Logging in failed. Please check your information."
                 _uiState.update { it.copy(isLoading = false, loginErrorMessage = errorMsg) }
@@ -121,13 +178,13 @@ class AuthViewModel : ViewModel() {
                 tokenManager?.saveTokens(response.accessToken, response.refreshToken)
                 _uiState.update {
                     it.copy(
-                        isLoggedIn = true,
+                        isLoggedIn = false,
                         isLoading = false,
-                        email = email
+                        email = email,
+                        sessionStatus = SessionStatus.RESOLVING
                     )
                 }
-                fetchUser()
-                onSuccess()
+                fetchUser(isSessionResolution = true, onSuccess = onSuccess)
             } catch(e: HttpException) {
                 val body = e.response()?.errorBody()?.string()
                 val msg = body ?: "Register failed (From Http)"
@@ -145,6 +202,7 @@ class AuthViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 isLoggedIn = true,
+                sessionStatus = SessionStatus.AUTHENTICATED,
                 name = "User ($provider)",
                 email = "user@$provider.com"
             )
@@ -175,7 +233,9 @@ class AuthViewModel : ViewModel() {
                         name = "Guest",
                         email = "",
                         password = "",
-                        isLoading = false
+                        isLoading = false,
+                        sessionStatus = SessionStatus.GUEST,
+                        sessionResolutionFailed = false
                     )
                 }
                 onComplete()
@@ -226,7 +286,10 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    private fun fetchUser() {
+    private fun fetchUser(
+        isSessionResolution: Boolean = false,
+        onSuccess: () -> Unit = {}
+    ) {
         viewModelScope.launch {
             try {
                 val user = RetrofitClient.userApi.getCurrentUser()
@@ -236,19 +299,30 @@ class AuthViewModel : ViewModel() {
                         name = if (user.username.isNotBlank()) user.username else user.email.substringBefore("@").replaceFirstChar { it.uppercase() },
                         email = user.email,
                         isLoading = false,
-                        isLoggedIn = true
+                        isLoggedIn = true,
+                        sessionStatus = SessionStatus.AUTHENTICATED,
+                        sessionResolutionFailed = false
                     )
                 }
-            } catch (e: Exception) {
-                if (tokenManager?.hasSession() == true) {
-                    val fallback = _uiState.value.email.substringBefore("@").replaceFirstChar { it.uppercase() }
-                    _uiState.update { it.copy(name = fallback, isLoading = false) }
-                } else {
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                if (tokenManager?.hasSession() != true) {
+                    onSessionExpired()
+                } else if (isSessionResolution) {
                     _uiState.update {
                         it.copy(
                             isLoggedIn = false,
-                            currentUser = null,
-                            name = "Guest",
+                            isLoading = false,
+                            sessionStatus = SessionStatus.ERROR,
+                            sessionResolutionFailed = true
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            updateErrorMessage = "Unable to refresh your profile.",
                             isLoading = false
                         )
                     }

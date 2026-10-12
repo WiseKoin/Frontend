@@ -1,12 +1,22 @@
 package com.wisekoin.navigation
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.wisekoin.data.local.TokenManager
 import com.wisekoin.data.remote.RetrofitClient
 import androidx.compose.ui.Modifier
@@ -25,6 +35,8 @@ import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 import com.wisekoin.viewmodel.VoiceViewModel
 import com.wisekoin.viewmodel.WalletViewModel
+import com.wisekoin.viewmodel.SessionStatus
+import com.wisekoin.R
 
 import androidx.compose.runtime.collectAsState
 import com.wisekoin.viewmodel.CategoryViewModel
@@ -57,23 +69,42 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
     val authViewModel: AuthViewModel = viewModel()
+    val authUiState by authViewModel.uiState.collectAsState()
 
     LaunchedEffect(effectiveTokenManager) {
-        RetrofitClient.init(effectiveTokenManager)
+        RetrofitClient.init(effectiveTokenManager, authViewModel::onSessionExpired)
         authViewModel.setTokenManager(effectiveTokenManager)
     }
 
+    LaunchedEffect(authUiState.sessionExpiryVersion) {
+        if (authUiState.sessionExpiryVersion > 0 && navController.currentBackStackEntry != null) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     // Only show bottom bar in listed screens
-    val showBottomBar = currentRoute in listOf(
+    val showBottomBar = authUiState.sessionStatus == SessionStatus.AUTHENTICATED &&
+        currentRoute in listOf(
         Screen.Overview.route,
         Screen.Expenses.route,
         Screen.Savings.route,
         Screen.Debt.route,
         Screen.Profile.route,
-        Screen.Login.route,
-        Screen.Register.route,
         Screen.AddTransaction.route
     )
+
+    if (authUiState.sessionStatus == SessionStatus.RESOLVING ||
+        authUiState.sessionStatus == SessionStatus.ERROR
+    ) {
+        SessionResolutionScreen(
+            failed = authUiState.sessionStatus == SessionStatus.ERROR,
+            onRetry = authViewModel::retrySessionResolution
+        )
+        return
+    }
 
     Scaffold(
         bottomBar = {
@@ -94,6 +125,11 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
         WiseKoinNavGraph(
             navController = navController,
             authViewModel = authViewModel,
+            startDestination = if (authUiState.sessionExpiryVersion > 0) {
+                Screen.Login.route
+            } else {
+                Screen.Overview.route
+            },
             modifier = Modifier.padding(padding)
         )
     }
@@ -103,6 +139,7 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
 fun WiseKoinNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel,
+    startDestination: String = Screen.Overview.route,
     modifier: Modifier = Modifier
 ) {
     // Shared ViewModel cho luồng Scan và Confirm
@@ -113,7 +150,7 @@ fun WiseKoinNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Overview.route,
+        startDestination = startDestination,
         modifier = modifier
     ) {
         composable(Screen.Login.route) {
@@ -182,13 +219,22 @@ fun WiseKoinNavGraph(
                 isLoggedIn = authUiState.isLoggedIn,
                 walletViewModel = walletViewModel,
                 onNavigateToAddTransaction = {
-                    navController.navigate(Screen.AddTransaction.route){
+                    val destination = if (authUiState.isLoggedIn) {
+                        Screen.AddTransaction.route
+                    } else {
+                        Screen.Login.route
+                    }
+                    navController.navigate(destination){
                         popUpTo(Screen.Overview.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
                  },
-                onSeeAllTransactions = { navController.navigate(Screen.Expenses.route) },
+                onSeeAllTransactions = {
+                    navController.navigate(
+                        if (authUiState.isLoggedIn) Screen.Expenses.route else Screen.Login.route
+                    )
+                },
                 onProfileClick = {
                     navController.navigate(Screen.Profile.route) {
                         popUpTo(Screen.Overview.route) { saveState = true }
@@ -219,8 +265,12 @@ fun WiseKoinNavGraph(
 
         composable(Screen.Debt.route) {
             val debtViewModel: DebtViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel()
             DebtManagementScreen(
                 debtViewModel = debtViewModel,
+                categoryViewModel = categoryViewModel,
+                walletViewModel = walletViewModel,
+                isLoggedIn = authUiState.isLoggedIn,
                 onAddDebt = { navController.navigate(Screen.AddTransaction.route){
                         popUpTo(Screen.Overview.route) { saveState = true }
                         launchSingleTop = true
@@ -333,6 +383,25 @@ fun WiseKoinNavGraph(
                 walletViewModel = walletViewModel,
                 onClose = { navController.popBackStack() }
             )
+        }
+    }
+}
+
+@Composable
+private fun SessionResolutionScreen(failed: Boolean, onRetry: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (failed) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(stringResource(R.string.session_check_failed))
+                Button(onClick = onRetry) {
+                    Text(stringResource(R.string.retry))
+                }
+            }
+        } else {
+            CircularProgressIndicator()
         }
     }
 }

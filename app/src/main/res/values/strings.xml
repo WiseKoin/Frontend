@@ -41,4 +41,17 @@
     <string name="cash_flow">Cash Flow</string>
     <string name="income">Income</string>
     <string name="expense">Expense</string>
+    <string name="session_check_failed">We couldn’t verify your session. Check your connection and try again.</string>
+    <string name="retry">Retry</string>
+    <string name="repay_debt">Record debt repayment</string>
+    <string name="remaining_debt">Remaining: %1$s</string>
+    <string name="amount_vnd">Amount (VND)</string>
+    <string name="category">Category</string>
+    <string name="select_wallet">Select a wallet</string>
+    <string name="select_category">Select a category</string>
+    <string name="no_compatible_category">No compatible category available</string>
+    <string name="invalid_repayment_amount">Enter a repayment amount greater than zero.</string>
+    <string name="repayment_exceeds_remaining">The repayment cannot exceed the remaining debt.</string>
+    <string name="debt_repayment_failed">We couldn’t record this repayment. Review the selections and try again.</string>
+    <string name="confirm">Confirm</string>
 </resources>

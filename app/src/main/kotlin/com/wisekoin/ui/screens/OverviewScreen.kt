@@ -322,14 +322,14 @@ private fun OverviewCreateWalletDialog(
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (selected) BrandGreenDark else CandyBg,
+                                    containerColor = if (selected) MintDark else CandyBg,
                                     contentColor = if (selected) Color.White else TextDark
                                 ),
                                 contentPadding = PaddingValues(horizontal = 6.dp)
                             ) {
                                 Text(
                                     stringResource(walletTypeLabel(type)),
-                                    fontSize = 11.sp,
+                                    fontSize = 13.sp,
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -376,7 +376,7 @@ private fun OverviewCreateWalletDialog(
                     }
                 },
                 enabled = !isSubmitting,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(

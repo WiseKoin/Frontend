@@ -44,12 +44,18 @@ class RefreshTokenAuthenticatorTest {
     @Test
     fun `failed refresh clears session and does not retry`() {
         val store = FakeTokenStore("old-access", "expired-refresh")
-        val authenticator = RefreshTokenAuthenticator(store) { null }
+        var expiryNotifications = 0
+        val authenticator = RefreshTokenAuthenticator(
+            tokenStore = store,
+            refreshTokens = { null },
+            onSessionExpired = { expiryNotifications++ }
+        )
 
         val retried = authenticator.authenticate(null, unauthorizedResponse("old-access"))
 
         assertNull(retried)
         assertFalse(store.hasSession())
+        assertEquals(1, expiryNotifications)
     }
 
     private fun unauthorizedResponse(accessToken: String): Response {

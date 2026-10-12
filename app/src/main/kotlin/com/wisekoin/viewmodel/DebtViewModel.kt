@@ -6,6 +6,7 @@ import com.wisekoin.data.model.DebtRepaymentRequest
 import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.remote.RetrofitClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +18,8 @@ data class DebtUiState(
     val debts: List<DebtResponse> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isRepaying: Boolean = false
+    val isRepaying: Boolean = false,
+    val repaymentFailed: Boolean = false
 ) {
     val totalLent: BigDecimal
         get() = debts.filter { it.type == "LEND" }.sumOf { it.remainingAmount }
@@ -71,7 +73,10 @@ class DebtViewModel : ViewModel() {
         categoryId: Long,
         note: String? = null
     ): Boolean {
-        _uiState.update { it.copy(isRepaying = true, errorMessage = null) }
+        if (_uiState.value.isRepaying) return false
+        _uiState.update {
+            it.copy(isRepaying = true, errorMessage = null, repaymentFailed = false)
+        }
         return try {
             val request = DebtRepaymentRequest(
                 amount = amount,
@@ -82,8 +87,10 @@ class DebtViewModel : ViewModel() {
             RetrofitClient.debtApi.repayDebt(debtId, request)
             loadDebts()
             true
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
-            _uiState.update { it.copy(errorMessage = e.localizedMessage ?: "Không thể trả nợ") }
+            _uiState.update { it.copy(repaymentFailed = true) }
             false
         } finally {
             _uiState.update { it.copy(isRepaying = false) }
@@ -91,6 +98,6 @@ class DebtViewModel : ViewModel() {
     }
 
     fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, repaymentFailed = false) }
     }
 }

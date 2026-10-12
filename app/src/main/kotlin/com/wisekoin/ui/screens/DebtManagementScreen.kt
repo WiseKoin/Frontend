@@ -12,39 +12,51 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.wisekoin.data.model.DebtRepaymentRequest
+import com.wisekoin.R
+import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.model.DebtResponse
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.model.WalletResponseDto
+import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatVND
 import com.wisekoin.ui.theme.*
+import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
+import com.wisekoin.viewmodel.WalletViewModel
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import android.widget.Toast
 
 @Composable
 fun DebtManagementScreen(
     debtViewModel: DebtViewModel = viewModel(),
+    categoryViewModel: CategoryViewModel = viewModel(),
+    walletViewModel: WalletViewModel = viewModel(),
+    isLoggedIn: Boolean = false,
     onAddDebt: () -> Unit
 ) {
     val state by debtViewModel.uiState.collectAsState()
+    val categoryState by categoryViewModel.uiState.collectAsState()
+    val walletState by walletViewModel.uiState.collectAsState()
     var isLentTab by remember { mutableStateOf(true) }
     var stateToRepay by remember { mutableStateOf<Pair<DebtResponse, Boolean>?>(null) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         debtViewModel.loadDebts()
@@ -68,7 +80,7 @@ fun DebtManagementScreen(
                     .fillMaxWidth()
                     .background(CandyBg, RoundedCornerShape(50))
                     .neomorphicBox(cornerRadius = 50.dp)
-                    .padding(4.dp),
+                    .padding(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
@@ -192,12 +204,33 @@ fun DebtManagementScreen(
     }
 
     stateToRepay?.let { (debt, isLent) ->
-        showRepayDialog(
+        LaunchedEffect(debt.id, isLent, isLoggedIn) {
+            walletViewModel.loadWallets()
+            categoryViewModel.loadCategories(if (isLent) "Lend" else "Borrow", isLoggedIn)
+        }
+        RepayDebtDialog(
             debt = debt,
-            isLent = isLent,
-            onRepaid = {
+            wallets = walletState.wallets,
+            categories = categoryState.categories,
+            optionsLoading = walletState.isLoading || categoryState.isLoading,
+            isSubmitting = state.isRepaying,
+            submissionFailed = state.repaymentFailed,
+            onDismiss = {
+                debtViewModel.clearError()
                 stateToRepay = null
-                scope.launch { debtViewModel.loadDebts() }
+            },
+            onRepay = { amount, walletId, categoryId ->
+                scope.launch {
+                    if (debtViewModel.repayDebt(
+                            debtId = debt.id,
+                            amount = amount,
+                            walletId = walletId,
+                            categoryId = categoryId
+                        )
+                    ) {
+                        stateToRepay = null
+                    }
+                }
             }
         )
     }
@@ -295,57 +328,99 @@ fun DebtCardItem(debt: DebtResponse, isLent: Boolean, onPaid: () -> Unit) {
 }
 
 @Composable
-private fun showRepayDialog(
+private fun RepayDebtDialog(
     debt: DebtResponse,
-    isLent: Boolean,
-    onRepaid: () -> Unit
+    wallets: List<WalletResponseDto>,
+    categories: List<CategoryResponse>,
+    optionsLoading: Boolean,
+    isSubmitting: Boolean,
+    submissionFailed: Boolean,
+    onDismiss: () -> Unit,
+    onRepay: (BigDecimal, Long, Long) -> Unit
 ) {
-    var amount by remember { mutableStateOf("") }
-    var walletName by remember { mutableStateOf("Loading...") }
-    var walletId by remember { mutableStateOf<Long?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitClient.walletApi.getWallets()
-            if (response.wallets.isNotEmpty()) {
-                val first = response.wallets[0]
-                walletId = first.id
-                walletName = first.name
-            }
-        } catch (e: Exception) {
-            walletName = "Main Cash"
-        }
-    }
+    var amount by rememberSaveable(debt.id) { mutableStateOf("") }
+    var selectedWalletId by rememberSaveable(debt.id) { mutableStateOf<Long?>(null) }
+    var selectedCategoryId by rememberSaveable(debt.id) { mutableStateOf<Long?>(null) }
+    var validationMessage by rememberSaveable(debt.id) { mutableStateOf<Int?>(null) }
 
     AlertDialog(
-        onDismissRequest = {},
-        title = { Text("Repay Debt", fontWeight = FontWeight.Bold) },
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        title = { Text(stringResource(R.string.repay_debt), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    stringResource(R.string.remaining_debt, debt.remainingAmount.formatVND()),
+                    color = TextLight,
+                    fontSize = 13.sp
+                )
                 OutlinedTextField(
                     value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount (VND)") },
+                    onValueChange = {
+                        amount = formatAmount(it)
+                        validationMessage = null
+                    },
+                    label = { Text(stringResource(R.string.amount_vnd)) },
                     singleLine = true,
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                     )
                 )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neomorphicBox(cornerRadius = 22.dp)
-                        .background(CandyBg, RoundedCornerShape(22.dp))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    Column {
-                        Text("Wallet", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
-                        Text(walletName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                RepaymentSelector(
+                    label = stringResource(R.string.wallet),
+                    placeholder = stringResource(
+                        if (wallets.isEmpty() && !optionsLoading) {
+                            R.string.no_wallet_available
+                        } else {
+                            R.string.select_wallet
+                        }
+                    ),
+                    selectedId = selectedWalletId,
+                    options = wallets.map { it.id to "${it.name} · ${it.balance.formatVND()}" },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null)
+                    },
+                    enabled = !isSubmitting && wallets.isNotEmpty(),
+                    onSelected = {
+                        selectedWalletId = it
+                        validationMessage = null
                     }
+                )
+                RepaymentSelector(
+                    label = stringResource(R.string.category),
+                    placeholder = stringResource(
+                        if (categories.isEmpty() && !optionsLoading) {
+                            R.string.no_compatible_category
+                        } else {
+                            R.string.select_category
+                        }
+                    ),
+                    selectedId = selectedCategoryId,
+                    options = categories.map { it.id to it.name },
+                    leadingIcon = { Icon(Icons.Outlined.Category, contentDescription = null) },
+                    enabled = !isSubmitting && categories.isNotEmpty(),
+                    onSelected = {
+                        selectedCategoryId = it
+                        validationMessage = null
+                    }
+                )
+                if (optionsLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                validationMessage?.let {
+                    Text(
+                        stringResource(it),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
+                }
+                if (submissionFailed) {
+                    Text(
+                        stringResource(R.string.debt_repayment_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
                 }
             }
         },
@@ -353,46 +428,85 @@ private fun showRepayDialog(
             Button(
                 onClick = {
                     val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
-                    if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
-                        Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    if (walletId == null) {
-                        Toast.makeText(context, "Please select a wallet.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    isLoading = true
-                    scope.launch {
-                        try {
-                            RetrofitClient.debtApi.repayDebt(
-                                debt.id,
-                                DebtRepaymentRequest(
-                                    amount = parsedAmount,
-                                    walletId = walletId!!,
-                                    categoryId = if (isLent) 1L else 2L,
-                                    note = null
-                                )
-                            )
-                            onRepaid()
-                        } catch (e: Exception) {
-                            Toast.makeText(context, e.localizedMessage ?: "Failed to repay debt.", Toast.LENGTH_SHORT).show()
-                        } finally {
-                            isLoading = false
-                        }
+                    when {
+                        parsedAmount == null || parsedAmount <= BigDecimal.ZERO ->
+                            validationMessage = R.string.invalid_repayment_amount
+                        parsedAmount > debt.remainingAmount ->
+                            validationMessage = R.string.repayment_exceeds_remaining
+                        selectedWalletId == null -> validationMessage = R.string.select_wallet
+                        selectedCategoryId == null -> validationMessage = R.string.select_category
+                        else -> onRepay(parsedAmount, selectedWalletId!!, selectedCategoryId!!)
                     }
                 },
-                enabled = !isLoading,
+                enabled = !isSubmitting && !optionsLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
                 } else {
-                    Text("Confirm")
+                    Text(stringResource(R.string.confirm))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = {}) { Text("Cancel") }
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(R.string.cancel))
+            }
         }
     )
+}
+
+@Composable
+private fun RepaymentSelector(
+    label: String,
+    placeholder: String,
+    selectedId: Long?,
+    options: List<Pair<Long, String>>,
+    leadingIcon: @Composable () -> Unit,
+    enabled: Boolean,
+    onSelected: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedText = options.firstOrNull { it.first == selectedId }?.second ?: placeholder
+
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp)
+        ) {
+            leadingIcon()
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                Text(label, fontSize = 11.sp, color = TextLight)
+                Text(
+                    selectedText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = TextDark
+                )
+            }
+            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.82f)
+        ) {
+            options.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    onClick = {
+                        onSelected(id)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }

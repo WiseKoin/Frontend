@@ -24,10 +24,12 @@ data class ErrorResponse(
 
 object RetrofitClient {
     private var tokenManager: SessionTokenStore? = null
+    private var sessionExpiredCallback: (() -> Unit)? = null
     private val gson = Gson()
 
-    fun init(tokenManager: TokenManager) {
+    fun init(tokenManager: TokenManager, onSessionExpired: () -> Unit = {}) {
         this.tokenManager = tokenManager
+        this.sessionExpiredCallback = onSessionExpired
     }
 
     fun getGson(): Gson = gson
@@ -99,7 +101,8 @@ object RetrofitClient {
             .authenticator(
                 RefreshTokenAuthenticator(
                     tokenStore = sessionStore,
-                    refreshTokens = ::refreshTokens
+                    refreshTokens = ::refreshTokens,
+                    onSessionExpired = { sessionExpiredCallback?.invoke() }
                 )
             )
             .build()
@@ -158,12 +161,16 @@ object RetrofitClient {
 
 internal class RefreshTokenAuthenticator(
     private val tokenStore: SessionTokenStore,
+    private val onSessionExpired: () -> Unit = {},
     private val refreshTokens: (String) -> AuthResponse?
 ) : Authenticator {
     private val refreshLock = Any()
 
     override fun authenticate(route: Route?, response: Response): Request? {
-        if (response.responseCount() >= 2) return null
+        if (response.responseCount() >= 2) {
+            expireSession()
+            return null
+        }
 
         val requestToken = response.request.header("Authorization")
             ?.removePrefix("Bearer ")
@@ -177,19 +184,24 @@ internal class RefreshTokenAuthenticator(
 
             val refreshToken = tokenStore.getRefreshToken()
             if (refreshToken.isNullOrBlank()) {
-                tokenStore.clearTokens()
+                expireSession()
                 return@synchronized null
             }
 
             val refreshed = refreshTokens(refreshToken)
             if (refreshed == null || refreshed.accessToken.isBlank() || refreshed.refreshToken.isBlank()) {
-                tokenStore.clearTokens()
+                expireSession()
                 return@synchronized null
             }
 
             tokenStore.saveTokens(refreshed.accessToken, refreshed.refreshToken)
             response.request.withBearerToken(refreshed.accessToken)
         }
+    }
+
+    private fun expireSession() {
+        tokenStore.clearTokens()
+        onSessionExpired()
     }
 }
 

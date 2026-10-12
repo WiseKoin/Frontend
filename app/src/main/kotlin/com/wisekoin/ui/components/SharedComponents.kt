@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,8 +50,17 @@ data class Transaction(
     val iconBgColor: Color
 )
 
-data class DailyExpense(val day: Int, val expense: BigDecimal)
-data class WeeklyExpense(val dayOfWeek: Int, val expense: BigDecimal)
+data class DailyExpense(
+    val day: Int,
+    val expense: BigDecimal,
+    val income: BigDecimal = BigDecimal.ZERO
+)
+
+data class WeeklyExpense(
+    val dayOfWeek: Int,
+    val expense: BigDecimal,
+    val income: BigDecimal = BigDecimal.ZERO
+)
 
 val sampleTransactions = mutableListOf(
     Transaction("1", "Supermarket Groceries", "Dining", "-350,000đ", true, "Today, 14:30", PeachDark),
@@ -287,7 +297,7 @@ fun TotalBalanceCard(
             modifier = Modifier.padding(24.dp)
         ) {
             Text(
-                text = "Total Balance",
+                text = stringResource(R.string.total_balance),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextLight
@@ -295,62 +305,124 @@ fun TotalBalanceCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = balance,
-                fontSize = 30.sp,
+                fontSize = if (balance.length > 18) 24.sp else 30.sp,
                 fontWeight = FontWeight.Black,
-                color = TextDark
+                color = TextDark,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Income
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MintDark.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.TrendingUp,
-                            contentDescription = null,
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(20.dp)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val stackStatistics = maxWidth < 300.dp || LocalDensity.current.fontScale >= 1.3f
+                if (stackStatistics) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BalanceStatistic(
+                            label = stringResource(R.string.income),
+                            amount = income,
+                            isIncome = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        BalanceStatistic(
+                            label = stringResource(R.string.expense),
+                            amount = expense,
+                            isIncome = false,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Income", fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Medium)
-                        Text(income, fontSize = 15.sp, color = TextDark, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                // Expense
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryRed.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            tint = PrimaryRed,
-                            modifier = Modifier.size(20.dp)
+                        BalanceStatistic(
+                            label = stringResource(R.string.income),
+                            amount = income,
+                            isIncome = true,
+                            modifier = Modifier.weight(1f)
                         )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Expense", fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Medium)
-                        Text(expense, fontSize = 15.sp, color = TextDark, fontWeight = FontWeight.Bold)
+                        BalanceStatistic(
+                            label = stringResource(R.string.expense),
+                            amount = expense,
+                            isIncome = false,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun NetworkErrorBanner(message: String, onRetry: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = PrimaryRed.copy(alpha = 0.08f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = message,
+                color = TextDark,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onRetry) {
+                Text(stringResource(R.string.retry))
+            }
+        }
+    }
+}
+
+@Composable
+private fun BalanceStatistic(
+    label: String,
+    amount: String,
+    isIncome: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isIncome) MintDark.copy(alpha = 0.2f)
+                    else PrimaryRed.copy(alpha = 0.15f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isIncome) {
+                    Icons.AutoMirrored.Filled.TrendingUp
+                } else {
+                    Icons.AutoMirrored.Filled.TrendingDown
+                },
+                contentDescription = null,
+                tint = if (isIncome) Color(0xFF2E7D32) else PrimaryRed,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Medium)
+            Text(
+                text = amount,
+                fontSize = 14.sp,
+                color = TextDark,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -366,10 +438,10 @@ fun CashFlowCard(
     stats: List<MonthlyStatsDto> = emptyList(),
     dailyData: List<DailyExpense> = emptyList(),
     weeklyData: List<WeeklyExpense> = emptyList(),
-    periodLabel: String = "This Year"
+    periodLabel: String = "This Year",
+    groupStatsByYear: Boolean = false
 ) {
-    val isAllTime = periodLabel.contains("-") || periodLabel.contains("–")
-    val isMonthly = stats.isNotEmpty() && !isAllTime
+    val isMonthly = stats.isNotEmpty() && !groupStatsByYear
     val isDaily = dailyData.isNotEmpty()
     val isWeekly = weeklyData.isNotEmpty()
 
@@ -380,14 +452,16 @@ fun CashFlowCard(
                 val weekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                 (1..7).map { dow ->
                     val exp = weeklyData.find { it.dayOfWeek == dow }?.expense ?: BigDecimal.ZERO
-                    ChartBarItem(weekDays[dow - 1], BigDecimal.ZERO, exp)
+                    val income = weeklyData.find { it.dayOfWeek == dow }?.income ?: BigDecimal.ZERO
+                    ChartBarItem(weekDays[dow - 1], income, exp)
                 }
             }
             isDaily -> {
                 val daysInMonth = LocalDate.now().lengthOfMonth()
                 (1..daysInMonth).map { d ->
                     val exp = dailyData.find { it.day == d }?.expense ?: BigDecimal.ZERO
-                    ChartBarItem("%02d".format(d), BigDecimal.ZERO, exp)
+                    val income = dailyData.find { it.day == d }?.income ?: BigDecimal.ZERO
+                    ChartBarItem("%02d".format(d), income, exp)
                 }
             }
             isMonthly -> {
@@ -400,10 +474,9 @@ fun CashFlowCard(
                     )
                 }
             }
-            isAllTime -> {
-                val nowYear = LocalDate.now().year
+            groupStatsByYear -> {
                 val yearGrouped = stats.groupBy { it.year }
-                (nowYear - 10..nowYear).map { year ->
+                yearGrouped.keys.sorted().map { year ->
                     val totalIncome = yearGrouped[year]
                         ?.mapNotNull { it.totalIncome }
                         ?.fold(BigDecimal.ZERO, BigDecimal::add) ?: BigDecimal.ZERO
@@ -486,11 +559,14 @@ fun CashFlowCard(
                     val incomeRatio = chartHeightRatio(item.income, maxAmount)
                     val expenseRatio = chartHeightRatio(item.expense, maxAmount)
 
+                    val itemModifier = if (isDaily) {
+                        Modifier.fillMaxHeight().width(32.dp)
+                    } else {
+                        Modifier.fillMaxHeight().weight(1f)
+                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(if (isDaily) 28.dp else 20.dp)
+                        modifier = itemModifier
                     ) {
                         Row(
                             modifier = Modifier
@@ -508,7 +584,12 @@ fun CashFlowCard(
                             text = item.label,
                             fontSize = 10.sp,
                             color = TextLight,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

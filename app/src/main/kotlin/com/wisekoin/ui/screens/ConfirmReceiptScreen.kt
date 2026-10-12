@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,51 +35,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.wisekoin.data.model.WalletSummaryResponseDto
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.R
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
-import kotlinx.coroutines.launch
+import com.wisekoin.viewmodel.WalletViewModel
 
 @Composable
 fun ConfirmReceiptScreen(
     viewModel: ReceiptViewModel,
     authViewModel: AuthViewModel,
     categoryViewModel: CategoryViewModel,
+    walletViewModel: WalletViewModel,
     onRetakeClick: () -> Unit,
     onScanAnotherClick: () -> Unit,
     onConfirmSuccess: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val authUiState by authViewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
     val isLoggedIn = authUiState.isLoggedIn
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     var selectedWalletId by remember { mutableStateOf<Long?>(null) }
-    var walletOptions by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+    val walletOptions = walletState.wallets.map { it.id to it.name }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             categoryViewModel.loadCategories("Expense", true)
+            walletViewModel.loadWallets()
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (isLoggedIn) {
-            scope.launch {
-                try {
-                    val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
-                    if (response.wallets.isNotEmpty()) {
-                        selectedWalletId = response.wallets[0].id
-                        walletOptions = response.wallets.map { it.id to it.name }
-                    }
-                } catch (_: Exception) {}
-            }
-        }
+    LaunchedEffect(walletState.wallets) {
+        if (selectedWalletId == null) selectedWalletId = walletState.wallets.firstOrNull()?.id
     }
 
     Column(
@@ -176,6 +168,19 @@ fun ConfirmReceiptScreen(
             )
         }
 
+        walletState.error?.let { error ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(error, color = PrimaryRed, modifier = Modifier.weight(1f))
+                TextButton(onClick = walletViewModel::loadWallets) {
+                    Text(stringResource(R.string.retry))
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(28.dp))
 
         Box(
@@ -229,8 +234,12 @@ fun ConfirmReceiptScreen(
                 containerColor = PrimaryRed,
                 contentColor = Color.White
             ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+            enabled = !uiState.isSubmitting
         ) {
+            if (uiState.isSubmitting) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+            } else {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -248,6 +257,7 @@ fun ConfirmReceiptScreen(
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
+            }
             }
         }
     }
@@ -397,7 +407,7 @@ private fun DateAndCategoryRow(
     categoryViewModel: CategoryViewModel,
     isLoggedIn: Boolean
 ) {
-    val categoryUiState by categoryViewModel.uiState.collectAsState()
+    val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 

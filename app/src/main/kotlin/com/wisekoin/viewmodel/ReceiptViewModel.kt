@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.ReceiptResponseDto
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.ui.components.Transaction
 import com.wisekoin.ui.components.sampleTransactions
 import com.wisekoin.ui.theme.LemonDark
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import okhttp3.MultipartBody
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -30,6 +32,7 @@ data class ReceiptUiState(
     val category: String = "Dining",
     val date: String = "",
     val isLoading: Boolean = false,
+    val isSubmitting: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -37,6 +40,7 @@ class ReceiptViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReceiptUiState())
     val uiState: StateFlow<ReceiptUiState> = _uiState.asStateFlow()
+    private val submissionGate = SubmissionGate()
 
     init {
         resetDateTime()
@@ -67,21 +71,25 @@ class ReceiptViewModel : ViewModel() {
 
                 _uiState.update {
                     it.copy(
-                        storeName = response.storeName.ifBlank { "Highland Coffee" },
-                        category = response.category.ifBlank { "Dining" },
+                        storeName = response.storeName,
+                        category = response.category,
                         amount = formattedAmount,
                         isLoading = false
                     )
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                android.util.Log.e("ReceiptViewModel", "Error extracting receipt data", e)
                 _uiState.update {
                     it.copy(
                         storeName = "Not available",
                         category = "Not available",
                         amount = "Not available",
                         isLoading = false,
-                        errorMessage = e.localizedMessage ?: "Cannot connect to server"
+                        errorMessage = NetworkErrorMapper.message(
+                            e,
+                            "We couldn’t read this receipt. Retake the photo and try again."
+                        )
                     )
                 }
             }
@@ -166,6 +174,9 @@ class ReceiptViewModel : ViewModel() {
             return
         }
 
+        if (!submissionGate.tryStart()) return
+        _uiState.update { it.copy(isSubmitting = true) }
+
         viewModelScope.launch {
             try {
                 RetrofitClient.transactionApi.createTransaction(
@@ -181,13 +192,14 @@ class ReceiptViewModel : ViewModel() {
                 )
                 resetState()
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
-                    "Insufficient wallet balance."
-                } else {
-                    e.localizedMessage ?: "Failed to save transaction."
-                }
+                val errorMsg = NetworkErrorMapper.message(e, "Unable to save this transaction. Please try again.")
                 onFailure(errorMsg)
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
+                submissionGate.finish()
             }
         }
     }
@@ -199,6 +211,8 @@ class ReceiptViewModel : ViewModel() {
             onFailure("Invalid amount")
             return
         }
+        if (!submissionGate.tryStart()) return
+        _uiState.update { it.copy(isSubmitting = true) }
         viewModelScope.launch {
             try {
                 RetrofitClient.transactionApi.createTransaction(
@@ -212,8 +226,13 @@ class ReceiptViewModel : ViewModel() {
                 )
                 resetState()
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                onFailure(e.localizedMessage ?: "Failed to save transaction")
+                onFailure(NetworkErrorMapper.message(e, "Unable to save this transaction. Please try again."))
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
+                submissionGate.finish()
             }
         }
     }

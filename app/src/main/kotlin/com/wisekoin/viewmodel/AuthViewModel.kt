@@ -10,6 +10,7 @@ import com.wisekoin.data.model.UpdateProfileRequest
 import com.wisekoin.data.model.UserResponseDto
 import com.wisekoin.data.remote.ErrorResponse
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,7 @@ class AuthViewModel : ViewModel() {
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     private var tokenManager: SessionTokenStore? = null
+    private val authSubmissionGate = SubmissionGate()
 
     fun setTokenManager(manager: SessionTokenStore) {
         this.tokenManager = manager
@@ -116,6 +118,7 @@ class AuthViewModel : ViewModel() {
     }
 
     fun login(onSuccess: () -> Unit, onError: (String) -> Unit) {
+        if (_uiState.value.isLoading) return
         val email = _uiState.value.email.trim()
         val password = _uiState.value.password.trim()
 
@@ -139,6 +142,7 @@ class AuthViewModel : ViewModel() {
             onError(msg)
             return
         }
+        if (!authSubmissionGate.tryStart()) return
 
         _uiState.update { it.copy(isLoading = true, loginErrorMessage = null) }
 
@@ -147,10 +151,18 @@ class AuthViewModel : ViewModel() {
                 val response = RetrofitClient.authApi.login(LoginRequest(email, password))
                 tokenManager?.saveTokens(response.accessToken, response.refreshToken)
                 fetchUser(isSessionResolution = true, onSuccess = onSuccess)
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Logging in failed. Please check your information."
+                val errorMsg = if ((e as? HttpException)?.code() == 401) {
+                    "The email or password is incorrect."
+                } else {
+                    NetworkErrorMapper.message(e, "Unable to sign in. Please try again.")
+                }
                 _uiState.update { it.copy(isLoading = false, loginErrorMessage = errorMsg) }
                 onError(errorMsg)
+            } finally {
+                authSubmissionGate.finish()
             }
         }
     }
@@ -163,10 +175,12 @@ class AuthViewModel : ViewModel() {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
+        if (_uiState.value.isLoading) return
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
             onError("Please enter the required information.")
             return
         }
+        if (!authSubmissionGate.tryStart()) return
 
         _uiState.update { it.copy(isLoading = true, registerErrorMessage = null) }
 
@@ -185,15 +199,14 @@ class AuthViewModel : ViewModel() {
                     )
                 }
                 fetchUser(isSessionResolution = true, onSuccess = onSuccess)
-            } catch(e: HttpException) {
-                val body = e.response()?.errorBody()?.string()
-                val msg = body ?: "Register failed (From Http)"
-                _uiState.update { it.copy(isLoading = false, registerErrorMessage = msg) }
-                onError(msg)
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Register failed (From dunno?)"
+                val errorMsg = NetworkErrorMapper.message(e, "Unable to create your account. Please try again.")
                 _uiState.update { it.copy(isLoading = false, registerErrorMessage = errorMsg) }
                 onError(errorMsg)
+            } finally {
+                authSubmissionGate.finish()
             }
         }
     }
@@ -278,8 +291,10 @@ class AuthViewModel : ViewModel() {
                     )
                 }
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Failed to update profile"
+                val errorMsg = NetworkErrorMapper.message(e, "Unable to update your profile. Please try again.")
                 _uiState.update { it.copy(isLoading = false, updateErrorMessage = errorMsg) }
                 onError(errorMsg)
             }

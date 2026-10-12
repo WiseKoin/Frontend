@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.VoiceResponseDto
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -54,7 +56,7 @@ class AndroidAudioRecorder(private val context: Context) {
             recorder = newRecorder
             true
         } catch (e: Exception) {
-            Log.e("AndroidAudioRecorder", "Failed to start recording", e)
+            Log.e("AndroidAudioRecorder", "Failed to start recording")
             release()
             false
         }
@@ -67,7 +69,7 @@ class AndroidAudioRecorder(private val context: Context) {
             recorder = null
             true
         } catch (e: Exception) {
-            Log.e("AndroidAudioRecorder", "Failed to stop recording cleanly", e)
+            Log.e("AndroidAudioRecorder", "Failed to stop recording cleanly")
             release()
             false
         }
@@ -92,7 +94,8 @@ data class VoiceUiState(
     val editableNote: String = "",
     val transcript: String = "",
     val errorMessage: String? = null,
-    val isSaveSuccess: Boolean = false
+    val isSaveSuccess: Boolean = false,
+    val isSubmitting: Boolean = false
 )
 
 class VoiceViewModel : ViewModel() {
@@ -103,6 +106,7 @@ class VoiceViewModel : ViewModel() {
     private var audioRecorder: AndroidAudioRecorder? = null
     private var currentAudioFile: File? = null
     private var timerJob: Job? = null
+    private val submissionGate = SubmissionGate()
 
     fun startRecording(context: Context) {
         audioRecorder?.release()
@@ -180,27 +184,21 @@ class VoiceViewModel : ViewModel() {
                         voiceResult = response,
                         editableAmount = formattedAmount,
                         editableType = if (response.type.equals("INCOME", ignoreCase = true)) "INCOME" else "EXPENSE",
-                        editableCategory = if (response.category.isNotBlank() && response.category != "Unknown") response.category else "Dining",
+                        editableCategory = response.category.takeUnless { it.equals("Unknown", ignoreCase = true) }.orEmpty(),
                         editableNote = response.note ?: "",
                         transcript = response.transcript ?: ""
                     )
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                Log.e("VoiceViewModel", "Error extracting voice details", e)
-                val detailedError = if (e is retrofit2.HttpException) {
-                    try {
-                        val body = e.response()?.errorBody()?.string()
-                        if (!body.isNullOrBlank()) body else e.localizedMessage
-                    } catch (_: Exception) {
-                        e.localizedMessage
-                    }
-                } else {
-                    e.localizedMessage
-                }
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = detailedError ?: "Cannot extract transaction from voice."
+                        errorMessage = NetworkErrorMapper.message(
+                            e,
+                            "We couldn’t understand this recording. Try recording again."
+                        )
                     )
                 }
             }
@@ -248,13 +246,17 @@ class VoiceViewModel : ViewModel() {
         }
 
         val categories = categoryViewModel.uiState.value.categories
-        val selectedCategory = categories.firstOrNull { it.name.equals(currentState.editableCategory, ignoreCase = true) }
-            ?: categories.firstOrNull()
+        val selectedCategory = categories.firstOrNull {
+            it.name.equals(currentState.editableCategory, ignoreCase = true)
+        }
 
         if (selectedCategory == null) {
             onFailure("Category not found. Please create or select a category.")
             return
         }
+
+        if (!submissionGate.tryStart()) return
+        _uiState.update { it.copy(isSubmitting = true) }
 
         viewModelScope.launch {
             try {
@@ -270,13 +272,14 @@ class VoiceViewModel : ViewModel() {
                 )
                 resetState()
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
-                    "Insufficient wallet balance."
-                } else {
-                    e.localizedMessage ?: "Failed to save transaction."
-                }
+                val errorMsg = NetworkErrorMapper.message(e, "Unable to save this transaction. Please try again.")
                 onFailure(errorMsg)
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
+                submissionGate.finish()
             }
         }
     }

@@ -6,6 +6,7 @@ import com.wisekoin.data.model.DebtRepaymentRequest
 import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ data class DebtUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isRepaying: Boolean = false,
+    val isCreatingDebt: Boolean = false,
     val repaymentFailed: Boolean = false
 ) {
     val totalLent: BigDecimal
@@ -38,6 +40,8 @@ class DebtViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(DebtUiState())
     val uiState: StateFlow<DebtUiState> = _uiState.asStateFlow()
+    private val debtCreationGate = SubmissionGate()
+    private val repaymentGate = SubmissionGate()
 
     fun loadDebts(status: String? = null) {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -45,11 +49,13 @@ class DebtViewModel : ViewModel() {
             try {
                 val debts = RetrofitClient.debtApi.getDebts(status = status)
                 _uiState.update { it.copy(debts = debts, isLoading = false) }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.localizedMessage ?: "Không thể tải danh sách nợ"
+                        errorMessage = NetworkErrorMapper.message(e, "Unable to load debts. Please try again.")
                     )
                 }
             }
@@ -57,12 +63,21 @@ class DebtViewModel : ViewModel() {
     }
 
     suspend fun createDebt(request: DebtRequest): Long? {
+        if (!debtCreationGate.tryStart()) return null
+        _uiState.update { it.copy(isCreatingDebt = true) }
         return try {
             val response = RetrofitClient.debtApi.createDebt(request)
             response.id
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
-            _uiState.update { it.copy(errorMessage = e.localizedMessage ?: "Không thể tạo nợ") }
+            _uiState.update {
+                it.copy(errorMessage = NetworkErrorMapper.message(e, "Unable to create the debt. Please try again."))
+            }
             null
+        } finally {
+            _uiState.update { it.copy(isCreatingDebt = false) }
+            debtCreationGate.finish()
         }
     }
 
@@ -73,7 +88,7 @@ class DebtViewModel : ViewModel() {
         categoryId: Long,
         note: String? = null
     ): Boolean {
-        if (_uiState.value.isRepaying) return false
+        if (!repaymentGate.tryStart()) return false
         _uiState.update {
             it.copy(isRepaying = true, errorMessage = null, repaymentFailed = false)
         }
@@ -94,6 +109,7 @@ class DebtViewModel : ViewModel() {
             false
         } finally {
             _uiState.update { it.copy(isRepaying = false) }
+            repaymentGate.finish()
         }
     }
 

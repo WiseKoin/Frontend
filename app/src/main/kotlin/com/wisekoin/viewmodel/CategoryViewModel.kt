@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.CategoryRequest
 import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 data class CategoryUiState(
     val categories: List<CategoryResponse> = emptyList(),
@@ -39,12 +41,14 @@ class CategoryViewModel : ViewModel() {
             try {
                 val list = RetrofitClient.categoryApi.getCategoriesByType(categoryTypeStr)
                 _uiState.update { it.copy(categories = list, isLoading = false) }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         categories = emptyList(),
                         isLoading = false,
-                        errorMessage = e.localizedMessage ?: "Lỗi tải danh mục từ máy chủ"
+                        errorMessage = NetworkErrorMapper.message(e, "Unable to load categories. Please try again.")
                     )
                 }
             }
@@ -83,8 +87,10 @@ class CategoryViewModel : ViewModel() {
                 )
                 loadCategories(type, isLoggedIn)
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                val errorMsg = e.localizedMessage ?: "Create a new category failed."
+                val errorMsg = NetworkErrorMapper.message(e, "Unable to create the category. Please try again.")
                 _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
                 onError(errorMsg)
             }

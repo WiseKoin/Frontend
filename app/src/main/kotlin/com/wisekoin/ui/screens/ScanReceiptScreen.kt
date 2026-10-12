@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.wisekoin.R as AppR
 import com.wisekoin.ui.theme.ControlBtnBg
 import com.wisekoin.ui.theme.NunitoSansFamily
 import com.wisekoin.ui.theme.ReticleRed
@@ -396,7 +397,7 @@ private fun capturePhoto(
             }
 
             override fun onError(exc: ImageCaptureException) {
-                Toast.makeText(context, "Capturing error: ${exc.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, AppR.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
             }
         }
     )

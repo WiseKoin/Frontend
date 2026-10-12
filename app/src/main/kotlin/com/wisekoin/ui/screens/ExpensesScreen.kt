@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -23,69 +24,46 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.data.model.TransactionResponseDto
+import com.wisekoin.R
 import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.CategoryViewModel
+import com.wisekoin.viewmodel.TransactionReportPeriod
 import com.wisekoin.viewmodel.WalletViewModel
+import com.wisekoin.viewmodel.buildAllTimeStats
+import com.wisekoin.viewmodel.buildMonthlyStats
+import com.wisekoin.viewmodel.isDisplayedExpense
+import com.wisekoin.viewmodel.parseTransactionDate
 import java.math.BigDecimal
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
-private fun parseTransactionDate(isoString: String): LocalDateTime? {
-    return try {
-        LocalDateTime.parse(isoString, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
-    } catch (e: Exception) {
-        null
-    }
-}
-
-private fun getExpensesByTimeFilter(
+private fun getDailyCashFlow(
     transactions: List<TransactionResponseDto>,
-    timeFilter: String
-): List<TransactionResponseDto> {
-    val now = LocalDateTime.now()
-    return transactions
-        .filter { it.type == "EXPENSE" }
-        .filter { tx ->
-            val dt = parseTransactionDate(tx.transactionDate)
-                ?: return@filter true
-            when (timeFilter) {
-                "This week" -> dt >= now.with(DayOfWeek.MONDAY).toLocalDate().atStartOfDay()
-                "This month" -> dt >= now.toLocalDate().withDayOfMonth(1).atStartOfDay()
-                "This year" -> dt >= now.toLocalDate().withDayOfYear(1).atStartOfDay()
-                else -> true
-            }
-        }
+    today: LocalDate
+): List<DailyExpense> = (1..today.lengthOfMonth()).map { day ->
+    val dayTransactions = transactions.filter {
+        parseTransactionDate(it.transactionDate)?.toLocalDate() == today.withDayOfMonth(day)
+    }
+    DailyExpense(
+        day = day,
+        expense = dayTransactions.filter { it.isDisplayedExpense() }.sumOf { it.amount },
+        income = dayTransactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+    )
 }
 
-private fun getDailyExpenses(transactions: List<TransactionResponseDto>): List<DailyExpense> {
-    val now = LocalDate.now()
-    val daysInMonth = now.lengthOfMonth()
-    val map: MutableMap<Int, BigDecimal> = mutableMapOf()
-    for (d in 1..daysInMonth) map[d] = BigDecimal.ZERO
-    for (tx in transactions) {
-        val dt = parseTransactionDate(tx.transactionDate) ?: continue
-        if (dt.monthValue == now.monthValue) {
-            val day = dt.dayOfMonth
-            map[day] = (map[day] ?: BigDecimal.ZERO) + tx.amount
+private fun getWeeklyCashFlow(transactions: List<TransactionResponseDto>): List<WeeklyExpense> =
+    (1..7).map { dayOfWeek ->
+        val dayTransactions = transactions.filter {
+            parseTransactionDate(it.transactionDate)?.dayOfWeek?.value == dayOfWeek
         }
+        WeeklyExpense(
+            dayOfWeek = dayOfWeek,
+            expense = dayTransactions.filter { it.isDisplayedExpense() }.sumOf { it.amount },
+            income = dayTransactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+        )
     }
-    return map.entries.map { DailyExpense(it.key, it.value) }
-}
-
-private fun getWeeklyExpenses(transactions: List<TransactionResponseDto>): List<WeeklyExpense> {
-    val map: MutableMap<Int, BigDecimal> = mutableMapOf()
-    for (d in 1..7) map[d] = BigDecimal.ZERO
-    for (tx in transactions) {
-        val dt = parseTransactionDate(tx.transactionDate) ?: continue
-        val dow = dt.dayOfWeek.value
-        map[dow] = (map[dow] ?: BigDecimal.ZERO) + tx.amount
-    }
-    return map.entries.map { WeeklyExpense(it.key, it.value) }
-}
 
 @Composable
 fun ExpensesScreen(
@@ -93,42 +71,48 @@ fun ExpensesScreen(
     categoryViewModel: CategoryViewModel = viewModel(),
     isLoggedIn: Boolean = false
 ) {
-    val state by walletViewModel.uiState.collectAsState()
-    val categoryUiState by categoryViewModel.uiState.collectAsState()
+    val state by walletViewModel.uiState.collectAsStateWithLifecycle()
+    val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
+
+    var selectedPeriod by remember { mutableStateOf(TransactionReportPeriod.ALL_TIME) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
-            walletViewModel.refreshAll()
+            walletViewModel.loadWallets()
             categoryViewModel.loadCategories("EXPENSE", isLoggedIn)
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (isLoggedIn) {
-            walletViewModel.refreshAll()
-            categoryViewModel.loadCategories("EXPENSE", isLoggedIn)
-        }
+    LaunchedEffect(isLoggedIn, selectedPeriod) {
+        if (isLoggedIn) walletViewModel.loadTransactionReport(selectedPeriod)
     }
 
     val displayBalance = state.totalBalance.formatVND()
 
-    var selectedTimeFilter by remember { mutableStateOf("All time") }
-
     val now = LocalDate.now()
-    val cashFlowStats = when (selectedTimeFilter) {
-        "This year" -> state.monthlyStats.filter { it.year == now.year }
-        else -> state.monthlyStats
+    val reportTransactions = state.reportTransactions
+    val cashFlowStats = when (selectedPeriod) {
+        TransactionReportPeriod.THIS_YEAR -> buildMonthlyStats(reportTransactions, now.year)
+        TransactionReportPeriod.ALL_TIME -> buildAllTimeStats(reportTransactions)
+        else -> emptyList()
     }
-    val dailyData = getDailyExpenses(getExpensesByTimeFilter(state.recentTransactions, selectedTimeFilter))
-    val weeklyData = getWeeklyExpenses(getExpensesByTimeFilter(state.recentTransactions, selectedTimeFilter))
-    val periodLabel = when (selectedTimeFilter) {
-        "This week" -> "This Week"
-        "This month" -> "This Month"
-        "This year" -> "This Year"
-        else -> "${now.year - 10} – ${now.year}"
+    val dailyData = getDailyCashFlow(reportTransactions, now)
+    val weeklyData = getWeeklyCashFlow(reportTransactions)
+    val reportYears = reportTransactions.mapNotNull {
+        parseTransactionDate(it.transactionDate)?.year
+    }.distinct().sorted()
+    val periodLabel = when (selectedPeriod) {
+        TransactionReportPeriod.THIS_WEEK -> "This Week"
+        TransactionReportPeriod.THIS_MONTH -> "This Month"
+        TransactionReportPeriod.THIS_YEAR -> "This Year"
+        TransactionReportPeriod.ALL_TIME -> when (reportYears.size) {
+            0 -> "All Time"
+            1 -> reportYears.first().toString()
+            else -> "${reportYears.first()} – ${reportYears.last()}"
+        }
     }
 
-    val expensesList = getExpensesByTimeFilter(state.recentTransactions, selectedTimeFilter)
+    val expensesList = reportTransactions.filter { it.isDisplayedExpense() }
         .map { tx ->
             Transaction(
                 id = tx.id.toString(),
@@ -185,12 +169,22 @@ fun ExpensesScreen(
             }
         }
 
+        categoryUiState.errorMessage?.let { message ->
+            item {
+                NetworkErrorBanner(
+                    message = message,
+                    onRetry = { categoryViewModel.loadCategories("EXPENSE", isLoggedIn) }
+                )
+            }
+        }
+
         item {
             CashFlowCard(
                 stats = if (isLoggedIn) cashFlowStats else emptyList(),
-                dailyData = if (isLoggedIn && selectedTimeFilter == "This month") dailyData else emptyList(),
-                weeklyData = if (isLoggedIn && selectedTimeFilter == "This week") weeklyData else emptyList(),
-                periodLabel = periodLabel
+                dailyData = if (isLoggedIn && selectedPeriod == TransactionReportPeriod.THIS_MONTH) dailyData else emptyList(),
+                weeklyData = if (isLoggedIn && selectedPeriod == TransactionReportPeriod.THIS_WEEK) weeklyData else emptyList(),
+                periodLabel = periodLabel,
+                groupStatsByYear = selectedPeriod == TransactionReportPeriod.ALL_TIME
             )
         }
 
@@ -205,14 +199,19 @@ fun ExpensesScreen(
 
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                val timeFilters = listOf("All time", "This week", "This month", "This year")
+                val timeFilters = listOf(
+                    "All time" to TransactionReportPeriod.ALL_TIME,
+                    "This week" to TransactionReportPeriod.THIS_WEEK,
+                    "This month" to TransactionReportPeriod.THIS_MONTH,
+                    "This year" to TransactionReportPeriod.THIS_YEAR
+                )
                 items(timeFilters.size) { index ->
-                    val filter = timeFilters[index]
-                    val isSelected = filter == selectedTimeFilter
+                    val (label, period) = timeFilters[index]
+                    val isSelected = period == selectedPeriod
                     FilterChip(
                         selected = isSelected,
-                        onClick = { selectedTimeFilter = filter },
-                        label = { Text(filter, fontWeight = FontWeight.Bold) },
+                        onClick = { selectedPeriod = period },
+                        label = { Text(label, fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = LemonDark,
                             selectedLabelColor = TextDark,
@@ -225,7 +224,27 @@ fun ExpensesScreen(
             }
         }
 
-        items(filteredList) { item ->
+        if (state.isReportLoading) {
+            item {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = PrimaryRed)
+                }
+            }
+        } else if (state.reportError) {
+            item {
+                Text(
+                    text = stringResource(R.string.transaction_report_load_failed),
+                    color = PrimaryRed,
+                    modifier = Modifier.clickable {
+                        walletViewModel.loadTransactionReport(selectedPeriod)
+                    }
+                )
+            }
+        } else if (filteredList.isEmpty()) {
+            item { Text(stringResource(R.string.no_expenses_for_period), color = TextLight) }
+        }
+
+        items(filteredList, key = { it.id }) { item ->
             TransactionRowItem(item)
             Spacer(modifier = Modifier.height(10.dp))
         }

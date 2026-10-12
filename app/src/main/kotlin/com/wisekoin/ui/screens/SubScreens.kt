@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
@@ -56,10 +57,10 @@ fun VoiceRecordingScreen(
     walletViewModel: WalletViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val uiState by voiceViewModel.uiState.collectAsState()
-    val authUiState by authViewModel.uiState.collectAsState()
-    val walletUiState by walletViewModel.uiState.collectAsState()
-    val categoryUiState by categoryViewModel.uiState.collectAsState()
+    val uiState by voiceViewModel.uiState.collectAsStateWithLifecycle()
+    val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val walletUiState by walletViewModel.uiState.collectAsStateWithLifecycle()
+    val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -300,9 +301,14 @@ fun VoiceRecordingScreen(
                                 .fillMaxWidth()
                                 .height(52.dp),
                             shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
+                            enabled = !uiState.isSubmitting
                         ) {
-                            Text("Confirm & Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            if (uiState.isSubmitting) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                            } else {
+                                Text("Confirm & Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
                         }
 
                         OutlinedButton(
@@ -448,7 +454,7 @@ fun CreateGoalScreen(
     goalViewModel: GoalViewModel
 ) {
     val context = LocalContext.current
-    val uiState by goalViewModel.uiState.collectAsState()
+    val uiState by goalViewModel.uiState.collectAsStateWithLifecycle()
 
     var goalName by remember { mutableStateOf("") }
     var targetAmount by remember { mutableStateOf("") }

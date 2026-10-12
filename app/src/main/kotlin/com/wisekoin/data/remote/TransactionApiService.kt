@@ -13,7 +13,9 @@ interface TransactionApiService {
     @GET("api/transactions")
     suspend fun getRecentTransactions(
         @Query("page") page: Int = 0,
-        @Query("size") size: Int = 10
+        @Query("size") size: Int = 10,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null
     ): PagedTransactionResponse
 
     @GET("api/transactions/stats")

@@ -39,6 +39,7 @@
     <string name="create">Create</string>
     <string name="cancel">Cancel</string>
     <string name="cash_flow">Cash Flow</string>
+    <string name="total_balance">Total Balance</string>
     <string name="income">Income</string>
     <string name="expense">Expense</string>
     <string name="session_check_failed">We couldn’t verify your session. Check your connection and try again.</string>
@@ -54,4 +55,7 @@
     <string name="repayment_exceeds_remaining">The repayment cannot exceed the remaining debt.</string>
     <string name="debt_repayment_failed">We couldn’t record this repayment. Review the selections and try again.</string>
     <string name="confirm">Confirm</string>
+    <string name="transaction_report_load_failed">Couldn’t load the complete transaction history. Tap here to retry.</string>
+    <string name="no_expenses_for_period">No expenses in this period.</string>
+    <string name="camera_capture_failed">We couldn’t capture the receipt. Please try again.</string>
 </resources>

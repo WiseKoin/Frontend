@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,20 +38,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wisekoin.R
 import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletRequest
-import com.wisekoin.data.model.WalletSummaryResponseDto
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
-import com.wisekoin.viewmodel.ReceiptViewModel
+import com.wisekoin.viewmodel.TransactionEntryViewModel
 import kotlin.math.abs
-import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
@@ -70,7 +70,7 @@ fun AddTransactionScreen(
     onProfileClick: () -> Unit,
     authViewModel: AuthViewModel,
     categoryViewModel: CategoryViewModel,
-    receiptViewModel: ReceiptViewModel
+    transactionEntryViewModel: TransactionEntryViewModel
 ) {
     var selectedType by remember { mutableStateOf("Expense") }
     var amount by remember { mutableStateOf("") }
@@ -95,11 +95,10 @@ fun AddTransactionScreen(
     var showDebtDueDatePicker by remember { mutableStateOf(false) }
     val debtDatePickerState = rememberDatePickerState()
 
-    val authUiState by authViewModel.uiState.collectAsState()
+    val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val isLoggedIn = authUiState.isLoggedIn
-    val categoryUiState by categoryViewModel.uiState.collectAsState()
-
-    val scope = rememberCoroutineScope()
+    val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
+    val transactionEntryState by transactionEntryViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(selectedType, isLoggedIn) {
         if (selectedType in listOf("Expense", "Income", "Lend", "Borrow")) {
@@ -107,18 +106,16 @@ fun AddTransactionScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
-                if (response.wallets.isNotEmpty()) {
-                    val first = response.wallets[0]
-                    selectedWalletId = first.id
-                    selectedWalletName = first.name
-                    walletOptions = response.wallets.map { it.id to it.name }
-                }
-            } catch (e: Exception) {
-                selectedWalletName = "Main Cash"
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) transactionEntryViewModel.loadWallets()
+    }
+
+    LaunchedEffect(transactionEntryState.wallets) {
+        walletOptions = transactionEntryState.wallets.map { it.id to it.name }
+        if (selectedWalletId == null) {
+            transactionEntryState.wallets.firstOrNull()?.let { wallet ->
+                selectedWalletId = wallet.id
+                selectedWalletName = wallet.name
             }
         }
     }
@@ -183,19 +180,26 @@ fun AddTransactionScreen(
                 showCreateWalletDialog = true
             }
         )
+        transactionEntryState.walletLoadError?.let { error ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(error, color = PrimaryRed, modifier = Modifier.weight(1f))
+                TextButton(onClick = transactionEntryViewModel::loadWallets) {
+                    Text(stringResource(R.string.retry))
+                }
+            }
+        }
         if (showCreateWalletDialog && isLoggedIn) {
             CreateWalletDialog(
+                transactionEntryViewModel = transactionEntryViewModel,
                 onDismiss = { showCreateWalletDialog = false },
                 onWalletCreated = { newWalletId, newWalletName ->
                     showCreateWalletDialog = false
                     selectedWalletId = newWalletId
                     selectedWalletName = newWalletName
-                    scope.launch {
-                        try {
-                            val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
-                            walletOptions = response.wallets.map { it.id to it.name }
-                        } catch (e: Exception) {}
-                    }
                 }
             )
         }
@@ -275,57 +279,49 @@ fun AddTransactionScreen(
                         val dueDate = debtDueDateMillis?.let {
                             LocalDate.ofEpochDay(it / 86400000).toString()
                         }
-                        scope.launch {
-                            try {
-                                RetrofitClient.debtApi.createDebt(
-                                    DebtRequest(
-                                        counterpartName = counterpartName.trim(),
-                                        type = debtType,
-                                        totalAmount = parsedAmount,
-                                        dueDate = dueDate,
-                                        note = if (note.isBlank()) null else note
-                                    )
-                                )
-                                onDebtCreated()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, e.localizedMessage ?: "Failed to save debt.", Toast.LENGTH_LONG).show()
+                        transactionEntryViewModel.createDebt(
+                            request = DebtRequest(
+                                counterpartName = counterpartName.trim(),
+                                type = debtType,
+                                totalAmount = parsedAmount,
+                                dueDate = dueDate,
+                                note = if (note.isBlank()) null else note
+                            ),
+                            onSuccess = onDebtCreated,
+                            onFailure = { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                             }
-                        }
+                        )
                     }
                 } else {
                     val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
                     if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                         Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
                     } else {
-                        scope.launch {
-                            try {
-                                val backendType = when (selectedType) {
-                                    "Income" -> "INCOME"
-                                    else -> "EXPENSE"
-                                }
-                                RetrofitClient.transactionApi.createTransaction(
-                                    TransactionRequest(
-                                        walletId = selectedWalletId!!,
-                                        categoryId = selectedCategoryId!!,
-                                        amount = parsedAmount,
-                                        type = backendType,
-                                        note = if (note.isBlank()) null else note,
-                                        transactionDate = formatTransactionDate(selectedDateMillis, selectedHour, selectedMinute)
-                                    )
-                                )
-                                onConfirmSuccess()
-                            } catch (e: Exception) {
-                                val errorMsg = if (e.message?.contains("Insufficient", ignoreCase = true) == true) {
+                        val backendType = if (selectedType == "Income") "INCOME" else "EXPENSE"
+                        transactionEntryViewModel.createTransaction(
+                            request = TransactionRequest(
+                                walletId = selectedWalletId!!,
+                                categoryId = selectedCategoryId!!,
+                                amount = parsedAmount,
+                                type = backendType,
+                                note = if (note.isBlank()) null else note,
+                                transactionDate = formatTransactionDate(selectedDateMillis, selectedHour, selectedMinute)
+                            ),
+                            onSuccess = onConfirmSuccess,
+                            onFailure = { message ->
+                                val safeMessage = if (message.contains("Insufficient", ignoreCase = true)) {
                                     "Insufficient wallet balance."
                                 } else {
-                                    e.localizedMessage ?: "Failed to save transaction."
+                                    message
                                 }
-                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, safeMessage, Toast.LENGTH_LONG).show()
                             }
-                        }
+                        )
                     }
                 }
-            }
+            },
+            isSubmitting = transactionEntryState.isSubmitting
         )
         Spacer(Modifier.height(8.dp))
     }
@@ -1033,6 +1029,7 @@ private fun FormatDateTime(dateMillis: Long?, hour: Int, minute: Int): String {
 
 @Composable
 private fun CreateWalletDialog(
+    transactionEntryViewModel: TransactionEntryViewModel,
     onDismiss: () -> Unit,
     onWalletCreated: (Long, String) -> Unit
 ) {
@@ -1040,8 +1037,7 @@ private fun CreateWalletDialog(
     var selectedType by remember { mutableStateOf("CASH") }
     var initialBalance by remember { mutableStateOf("") }
     val types = listOf("CASH", "BANK", "E_WALLET", "CREDIT_CARD")
-    var isLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val submissionState by transactionEntryViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     AlertDialog(
@@ -1095,39 +1091,34 @@ private fun CreateWalletDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    if (submissionState.isSubmitting) return@Button
                     if (walletName.isBlank()) {
                         Toast.makeText(context, "Please enter a wallet name.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     val balance = initialBalance.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO
-                    isLoading = true
-                    scope.launch {
-                        try {
-                            RetrofitClient.walletApi.createWallet(
-                                WalletRequest(
-                                    name = walletName.trim(),
-                                    walletType = selectedType,
-                                    initialBalance = balance
-                                )
-                            )
-                            val response: WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
-                            val newWallet = response.wallets.last()
+                    transactionEntryViewModel.createWallet(
+                        request = WalletRequest(
+                            name = walletName.trim(),
+                            walletType = selectedType,
+                            initialBalance = balance
+                        ),
+                        onSuccess = { newWallet ->
                             onWalletCreated(newWallet.id, newWallet.name)
-                        } catch (e: Exception) {
+                        },
+                        onFailure = { message ->
                             Toast.makeText(
                                 context,
-                                e.localizedMessage ?: "Failed to create wallet.",
+                                message,
                                 Toast.LENGTH_LONG
                             ).show()
-                        } finally {
-                            isLoading = false
                         }
-                    }
+                    )
                 },
-                enabled = !isLoading,
+                enabled = !submissionState.isSubmitting,
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
             ) {
-                if (isLoading) {
+                if (submissionState.isSubmitting) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
                 } else {
                     Text("Create")
@@ -1180,15 +1171,18 @@ private fun QuickToolButton(
 }
 
 @Composable
-private fun SaveTransactionButton(onClick: () -> Unit) {
+private fun SaveTransactionButton(onClick: () -> Unit, isSubmitting: Boolean) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(56.dp),
         shape = RoundedCornerShape(28.dp),
         colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed, contentColor = Color.White),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+        enabled = !isSubmitting
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (isSubmitting) {
+            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White)
+        } else Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CheckCircle, null, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(10.dp))
             Text("Save Transaction", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)

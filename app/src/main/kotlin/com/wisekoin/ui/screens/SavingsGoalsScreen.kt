@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.GoalViewModel
@@ -33,7 +34,7 @@ fun SavingsGoalsScreen(
     onAddNewGoal: () -> Unit,
     onGoalClick: (Long) -> Unit
 ) {
-    val uiState by goalViewModel.uiState.collectAsState()
+    val uiState by goalViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         goalViewModel.loadGoals()

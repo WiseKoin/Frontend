@@ -21,6 +21,7 @@ import com.wisekoin.data.local.TokenManager
 import com.wisekoin.data.remote.RetrofitClient
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -41,6 +42,7 @@ import com.wisekoin.R
 import androidx.compose.runtime.collectAsState
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
+import com.wisekoin.viewmodel.TransactionEntryViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -69,7 +71,7 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
     val authViewModel: AuthViewModel = viewModel()
-    val authUiState by authViewModel.uiState.collectAsState()
+    val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(effectiveTokenManager) {
         RetrofitClient.init(effectiveTokenManager, authViewModel::onSessionExpired)
@@ -143,10 +145,11 @@ fun WiseKoinNavGraph(
     modifier: Modifier = Modifier
 ) {
     // Shared ViewModel cho luồng Scan và Confirm
-    val authUiState by authViewModel.uiState.collectAsState()
+    val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val categoryViewModel: CategoryViewModel = viewModel()
     val receiptViewModel: ReceiptViewModel = viewModel()
     val goalViewModel: GoalViewModel = viewModel()
+    val transactionEntryViewModel: TransactionEntryViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -308,7 +311,7 @@ fun WiseKoinNavGraph(
                 },
                 authViewModel = authViewModel,
                 categoryViewModel = categoryViewModel,
-                receiptViewModel = receiptViewModel
+                transactionEntryViewModel = transactionEntryViewModel
             )
         }
 
@@ -325,10 +328,12 @@ fun WiseKoinNavGraph(
 
         // Xác nhận hóa đơn
         composable(Screen.ConfirmReceipt.route) {
+            val walletViewModel: WalletViewModel = viewModel()
             ConfirmReceiptScreen(
                 viewModel = receiptViewModel,
                 authViewModel = authViewModel,
                 categoryViewModel = categoryViewModel,
+                walletViewModel = walletViewModel,
                 onRetakeClick = {
                     navController.popBackStack()
                 },

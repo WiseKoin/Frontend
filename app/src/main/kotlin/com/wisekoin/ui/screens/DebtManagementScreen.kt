@@ -28,12 +28,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.R
 import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatVND
+import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
@@ -51,9 +53,9 @@ fun DebtManagementScreen(
     isLoggedIn: Boolean = false,
     onAddDebt: () -> Unit
 ) {
-    val state by debtViewModel.uiState.collectAsState()
-    val categoryState by categoryViewModel.uiState.collectAsState()
-    val walletState by walletViewModel.uiState.collectAsState()
+    val state by debtViewModel.uiState.collectAsStateWithLifecycle()
+    val categoryState by categoryViewModel.uiState.collectAsStateWithLifecycle()
+    val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
     var isLentTab by remember { mutableStateOf(true) }
     var stateToRepay by remember { mutableStateOf<Pair<DebtResponse, Boolean>?>(null) }
     val scope = rememberCoroutineScope()
@@ -105,6 +107,12 @@ fun DebtManagementScreen(
                 ) {
                     Text("Money Borrowed", fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+
+        state.errorMessage?.let { message ->
+            item {
+                NetworkErrorBanner(message = message, onRetry = { debtViewModel.loadDebts() })
             }
         }
 

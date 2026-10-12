@@ -7,6 +7,8 @@ import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.data.model.GoalFundRequestDto
 import com.wisekoin.data.remote.ErrorResponse
 import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.remote.NetworkErrorKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +42,8 @@ class GoalViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(GoalUiState())
     val uiState: StateFlow<GoalUiState> = _uiState.asStateFlow()
+    private val goalCreationGate = SubmissionGate()
+    private val goalFundingGate = SubmissionGate()
 
     val totalSaved: BigDecimal
         get() = _uiState.value.goals.sumOf { it.currentAmount }
@@ -53,11 +57,13 @@ class GoalViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.goalApi.getGoals()
                 _uiState.update { it.copy(goals = response, isLoading = false) }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.localizedMessage ?: "Failed to load goals"
+                        errorMessage = NetworkErrorMapper.message(e, "Unable to load goals. Please try again.")
                     )
                 }
             }
@@ -71,6 +77,7 @@ class GoalViewModel : ViewModel() {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
+        if (!goalCreationGate.tryStart()) return
         _uiState.update { it.copy(isCreating = true, errorMessage = null) }
         viewModelScope.launch {
             try {
@@ -84,10 +91,14 @@ class GoalViewModel : ViewModel() {
                 loadGoals()
                 _uiState.update { it.copy(isCreating = false) }
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 val errorMsg = extractBackendMessage(e)
                 _uiState.update { it.copy(isCreating = false, errorMessage = errorMsg) }
                 onError(errorMsg)
+            } finally {
+                goalCreationGate.finish()
             }
         }
     }
@@ -99,6 +110,7 @@ class GoalViewModel : ViewModel() {
         note: String?,
         onSuccess: () -> Unit
     ) {
+        if (!goalFundingGate.tryStart()) return
         _uiState.update { it.copy(isFunding = true, errorMessage = null, fundingError = null) }
         viewModelScope.launch {
             try {
@@ -130,6 +142,8 @@ class GoalViewModel : ViewModel() {
                         fundingError = fundingError
                     )
                 }
+            } finally {
+                goalFundingGate.finish()
             }
         }
     }
@@ -159,30 +173,7 @@ class GoalViewModel : ViewModel() {
     }
 
     private fun extractBackendMessage(e: Exception): String {
-        val message = e.message ?: "Failed to process request"
-        return when {
-            message.contains("Insufficient", ignoreCase = true) -> "Insufficient wallet balance."
-            message.contains("must not be blank") || message.contains("must not be null") ->
-                "Validation failed. Please check your input."
-            message.contains("Goal not found") || message.contains("404") -> "Goal not found."
-            message.contains("Wallet not found") || message.contains("Category not found") ->
-                "Invalid wallet or category selection."
-            message.startsWith("HTTP 400:") -> {
-                val body = message.substringAfter("HTTP 400: ")
-                when {
-                    body.contains("error") -> {
-                        try {
-                            val parsed = RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)
-                            parsed?.error ?: parsed?.message ?: "Bad request. Please check your input."
-                        } catch (ex: Exception) {
-                            "Bad request. Please check your input."
-                        }
-                    }
-                    else -> "Bad request. Please check your input."
-                }
-            }
-            else -> message
-        }
+        return NetworkErrorMapper.message(e, "Unable to save this goal. Please try again.")
     }
 
     fun clearError() {

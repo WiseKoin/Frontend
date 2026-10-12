@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.R
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.*
@@ -40,7 +41,7 @@ fun OverviewScreen(
     onSeeAllTransactions: () -> Unit,
     onProfileClick: () -> Unit = {}
 ) {
-    val state by walletViewModel.uiState.collectAsState()
+    val state by walletViewModel.uiState.collectAsStateWithLifecycle()
     var showCreateWalletDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
@@ -111,6 +112,12 @@ fun OverviewScreen(
                     canAddWallet = isLoggedIn,
                     onAddWallet = { showCreateWalletDialog = true }
                 )
+            }
+
+            state.error?.let { message ->
+                item {
+                    NetworkErrorBanner(message = message, onRetry = walletViewModel::refreshAll)
+                }
             }
 
             item {

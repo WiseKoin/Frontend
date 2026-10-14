@@ -7,7 +7,6 @@ import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.DebtRepository
-import com.wisekoin.data.repository.NetworkDebtRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +40,7 @@ data class DebtUiState(
 }
 
 class DebtViewModel(
-    private val debtRepository: DebtRepository = NetworkDebtRepository()
+    private val debtRepository: DebtRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DebtUiState())

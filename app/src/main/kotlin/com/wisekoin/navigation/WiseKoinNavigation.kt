@@ -12,13 +12,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.wisekoin.data.local.TokenManager
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.di.AppContainer
+import com.wisekoin.di.WiseKoinViewModelFactory
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,19 +66,17 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun WiseKoinApp(tokenManager: TokenManager? = null) {
-    val context = LocalContext.current
-    val effectiveTokenManager = remember(tokenManager) { tokenManager ?: TokenManager(context) }
-    
+fun WiseKoinApp(container: AppContainer) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
-    val authViewModel: AuthViewModel = viewModel()
+    val viewModelFactory = remember(container) { WiseKoinViewModelFactory(container) }
+    val authViewModel: AuthViewModel = viewModel(factory = viewModelFactory)
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(effectiveTokenManager) {
-        RetrofitClient.init(effectiveTokenManager, authViewModel::onSessionExpired)
-        authViewModel.setTokenManager(effectiveTokenManager)
+    DisposableEffect(container, authViewModel) {
+        container.sessionExpiryNotifier.setListener(authViewModel::onSessionExpired)
+        onDispose { container.sessionExpiryNotifier.setListener(null) }
     }
 
     LaunchedEffect(authUiState.sessionExpiryVersion) {
@@ -130,6 +128,7 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
         WiseKoinNavGraph(
             navController = navController,
             authViewModel = authViewModel,
+            viewModelFactory = viewModelFactory,
             startDestination = if (authUiState.sessionExpiryVersion > 0) {
                 Screen.Login.route
             } else {
@@ -144,16 +143,17 @@ fun WiseKoinApp(tokenManager: TokenManager? = null) {
 fun WiseKoinNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel,
+    viewModelFactory: WiseKoinViewModelFactory,
     startDestination: String = Screen.Overview.route,
     modifier: Modifier = Modifier
 ) {
     // Shared ViewModel cho luồng Scan và Confirm
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
-    val categoryViewModel: CategoryViewModel = viewModel()
-    val receiptViewModel: ReceiptViewModel = viewModel()
-    val goalViewModel: GoalViewModel = viewModel()
-    val transactionEntryViewModel: TransactionEntryViewModel = viewModel()
-    val accountSecurityViewModel: AccountSecurityViewModel = viewModel()
+    val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
+    val receiptViewModel: ReceiptViewModel = viewModel(factory = viewModelFactory)
+    val goalViewModel: GoalViewModel = viewModel(factory = viewModelFactory)
+    val transactionEntryViewModel: TransactionEntryViewModel = viewModel(factory = viewModelFactory)
+    val accountSecurityViewModel: AccountSecurityViewModel = viewModel(factory = viewModelFactory)
 
     NavHost(
         navController = navController,
@@ -260,7 +260,7 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Overview.route) {
-            val walletViewModel: WalletViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             OverviewScreen(
                 userName = authUiState.name,
                 isLoggedIn = authUiState.isLoggedIn,
@@ -293,9 +293,10 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Expenses.route) {
-            val walletViewModel: WalletViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             ExpensesScreen(
                 walletViewModel = walletViewModel,
+                categoryViewModel = categoryViewModel,
                 isLoggedIn = authUiState.isLoggedIn
             )
         }
@@ -311,8 +312,8 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.Debt.route) {
-            val debtViewModel: DebtViewModel = viewModel()
-            val walletViewModel: WalletViewModel = viewModel()
+            val debtViewModel: DebtViewModel = viewModel(factory = viewModelFactory)
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             DebtManagementScreen(
                 debtViewModel = debtViewModel,
                 categoryViewModel = categoryViewModel,
@@ -372,7 +373,7 @@ fun WiseKoinNavGraph(
 
         // Xác nhận hóa đơn
         composable(Screen.ConfirmReceipt.route) {
-            val walletViewModel: WalletViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             ConfirmReceiptScreen(
                 viewModel = receiptViewModel,
                 authViewModel = authViewModel,
@@ -396,8 +397,8 @@ fun WiseKoinNavGraph(
         }
 
         composable(Screen.VoiceRecording.route) {
-            val walletViewModel: WalletViewModel = viewModel()
-            val voiceViewModel: VoiceViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
+            val voiceViewModel: VoiceViewModel = viewModel(factory = viewModelFactory)
             VoiceRecordingScreen(
                 onClose = { navController.popBackStack() },
                 onConfirmSuccess = {
@@ -425,7 +426,7 @@ fun WiseKoinNavGraph(
             route = Screen.AddFunds.route,
             arguments = listOf(navArgument("goalId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val walletViewModel: WalletViewModel = viewModel()
+            val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             GoalFundingScreen(
                 goalId = backStackEntry.arguments?.getLong("goalId") ?: 0L,
                 goalViewModel = goalViewModel,

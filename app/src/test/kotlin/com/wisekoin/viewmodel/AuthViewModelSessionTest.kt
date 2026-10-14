@@ -1,6 +1,12 @@
 package com.wisekoin.viewmodel
 
 import com.wisekoin.data.local.SessionTokenStore
+import com.wisekoin.data.model.AuthResponse
+import com.wisekoin.data.model.LoginRequest
+import com.wisekoin.data.model.RegisterRequest
+import com.wisekoin.data.model.UpdateProfileRequest
+import com.wisekoin.data.model.UserResponseDto
+import com.wisekoin.data.repository.AuthRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,9 +16,7 @@ class AuthViewModelSessionTest {
 
     @Test
     fun `missing stored session resolves to explicit guest state`() {
-        val viewModel = AuthViewModel()
-
-        viewModel.setTokenManager(FakeTokenStore())
+        val viewModel = AuthViewModel(FakeAuthRepository(), FakeTokenStore())
 
         assertEquals(SessionStatus.GUEST, viewModel.uiState.value.sessionStatus)
         assertFalse(viewModel.uiState.value.isLoggedIn)
@@ -21,9 +25,7 @@ class AuthViewModelSessionTest {
     @Test
     fun `terminal expiry clears identity and emits navigation version once`() {
         val store = FakeTokenStore()
-        val viewModel = AuthViewModel()
-
-        viewModel.setTokenManager(store)
+        val viewModel = AuthViewModel(FakeAuthRepository(), store)
         store.saveTokens("access", "refresh")
         viewModel.onSessionExpired()
         viewModel.onSessionExpired()
@@ -53,5 +55,15 @@ class AuthViewModelSessionTest {
         }
 
         override fun hasSession(): Boolean = accessToken != null && refreshToken != null
+    }
+
+    private class FakeAuthRepository : AuthRepository {
+        override suspend fun login(request: LoginRequest): AuthResponse = unsupported()
+        override suspend fun register(request: RegisterRequest): AuthResponse = unsupported()
+        override suspend fun logout(refreshToken: String) = Unit
+        override suspend fun getCurrentUser(): UserResponseDto = unsupported()
+        override suspend fun updateProfile(request: UpdateProfileRequest): UserResponseDto = unsupported()
+
+        private fun <T> unsupported(): T = error("Not used by this test")
     }
 }

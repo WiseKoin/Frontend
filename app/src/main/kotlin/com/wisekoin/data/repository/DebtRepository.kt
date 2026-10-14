@@ -3,7 +3,7 @@ package com.wisekoin.data.repository
 import com.wisekoin.data.model.DebtRepaymentRequest
 import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.DebtApiService
 
 interface DebtRepository {
     suspend fun getDebts(status: String? = null): List<DebtResponse>
@@ -13,20 +13,22 @@ interface DebtRepository {
     suspend fun deleteDebt(debtId: Long)
 }
 
-class NetworkDebtRepository : DebtRepository {
+class NetworkDebtRepository(
+    private val api: DebtApiService
+) : DebtRepository {
     override suspend fun getDebts(status: String?): List<DebtResponse> =
-        RetrofitClient.debtApi.getDebts(status)
+        api.getDebts(status)
 
     override suspend fun createDebt(request: DebtRequest): DebtResponse =
-        RetrofitClient.debtApi.createDebt(request)
+        api.createDebt(request)
 
     override suspend fun repayDebt(debtId: Long, request: DebtRepaymentRequest): DebtResponse =
-        RetrofitClient.debtApi.repayDebt(debtId, request)
+        api.repayDebt(debtId, request)
 
     override suspend fun updateDebt(debtId: Long, request: DebtRequest): DebtResponse =
-        RetrofitClient.debtApi.updateDebt(debtId, request)
+        api.updateDebt(debtId, request)
 
     override suspend fun deleteDebt(debtId: Long) {
-        RetrofitClient.debtApi.deleteDebt(debtId)
+        api.deleteDebt(debtId)
     }
 }

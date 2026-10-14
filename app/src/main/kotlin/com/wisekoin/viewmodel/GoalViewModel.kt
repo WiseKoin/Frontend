@@ -6,9 +6,9 @@ import com.wisekoin.data.model.GoalRequestDto
 import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.data.model.GoalFundRequestDto
 import com.wisekoin.data.remote.ErrorResponse
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
-import com.wisekoin.data.remote.NetworkErrorKind
+import com.wisekoin.data.repository.GoalRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +38,9 @@ data class GoalFundingError(
     val message: String
 )
 
-class GoalViewModel : ViewModel() {
+class GoalViewModel(
+    private val repository: GoalRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GoalUiState())
     val uiState: StateFlow<GoalUiState> = _uiState.asStateFlow()
@@ -56,7 +58,7 @@ class GoalViewModel : ViewModel() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.goalApi.getGoals()
+                val response = repository.getGoals()
                 _uiState.update { it.copy(goals = response, isLoading = false) }
             } catch (error: CancellationException) {
                 throw error
@@ -82,7 +84,7 @@ class GoalViewModel : ViewModel() {
         _uiState.update { it.copy(isCreating = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                RetrofitClient.goalApi.createGoal(
+                repository.createGoal(
                     GoalRequestDto(
                         name = name.trim(),
                         targetAmount = targetAmount,
@@ -115,7 +117,7 @@ class GoalViewModel : ViewModel() {
         _uiState.update { it.copy(isFunding = true, errorMessage = null, fundingError = null) }
         viewModelScope.launch {
             try {
-                val updatedGoal = RetrofitClient.goalApi.fundGoal(
+                val updatedGoal = repository.fundGoal(
                     goalId = goalId,
                     request = GoalFundRequestDto(
                         walletId = walletId,
@@ -152,7 +154,7 @@ class GoalViewModel : ViewModel() {
     private fun extractFundingError(error: Exception): GoalFundingError {
         val response = (error as? HttpException)?.response()?.errorBody()?.string()?.let { body ->
             runCatching {
-                RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)
+                Gson().fromJson(body, ErrorResponse::class.java)
             }.getOrNull()
         }
         val serverMessage = response?.error ?: response?.message.orEmpty()

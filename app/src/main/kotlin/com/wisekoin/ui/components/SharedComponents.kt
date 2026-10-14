@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,13 +59,6 @@ data class WeeklyExpense(
     val dayOfWeek: Int,
     val expense: BigDecimal,
     val income: BigDecimal = BigDecimal.ZERO
-)
-
-val sampleTransactions = mutableListOf(
-    Transaction("1", "Supermarket Groceries", "Dining", "-350,000đ", true, "Today, 14:30", PeachDark),
-    Transaction("2", "Monthly Salary", "Income", "+15,000,000đ", false, "Yesterday", MintDark),
-    Transaction("3", "Grab Ride", "Transport", "-45,000đ", true, "Yesterday", LemonDark),
-    Transaction("4", "Coffee with Friends", "Entertainment", "-85,000đ", true, "20 Oct", LavenderDark),
 )
 
 fun BigDecimal.formatVND(): String {
@@ -626,7 +618,7 @@ private fun chartHeightRatio(amount: BigDecimal, maxAmount: BigDecimal): Float =
     }
 
 @Composable
-fun RecentTransactionsSection(transactions: List<Transaction> = sampleTransactions, onSeeAll: () -> Unit) {
+fun RecentTransactionsSection(transactions: List<Transaction>, onSeeAll: () -> Unit) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.ui.theme.*
@@ -30,7 +29,7 @@ import java.math.RoundingMode
 
 @Composable
 fun SavingsGoalsScreen(
-    goalViewModel: GoalViewModel = viewModel(),
+    goalViewModel: GoalViewModel,
     onAddNewGoal: () -> Unit,
     onGoalClick: (Long) -> Unit
 ) {

@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.CategoryRequest
 import com.wisekoin.data.model.CategoryResponse
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.CategoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +20,9 @@ data class CategoryUiState(
     val errorMessage: String? = null
 )
 
-class CategoryViewModel : ViewModel() {
+class CategoryViewModel(
+    private val repository: CategoryRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(CategoryUiState())
     val uiState: StateFlow<CategoryUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
@@ -46,7 +48,7 @@ class CategoryViewModel : ViewModel() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         loadJob = viewModelScope.launch {
             try {
-                val list = RetrofitClient.categoryApi.getCategoriesByType(categoryTypeStr)
+                val list = repository.getCategories(categoryTypeStr)
                 _uiState.update { it.copy(categories = list, isLoading = false) }
             } catch (error: CancellationException) {
                 throw error
@@ -85,7 +87,7 @@ class CategoryViewModel : ViewModel() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                RetrofitClient.categoryApi.createCategory(
+                repository.createCategory(
                     CategoryRequest(
                         name = name.trim(),
                         type = categoryTypeStr,

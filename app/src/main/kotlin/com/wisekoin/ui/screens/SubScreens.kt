@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
@@ -53,10 +52,10 @@ import java.time.format.DateTimeFormatter
 fun VoiceRecordingScreen(
     onClose: () -> Unit,
     onConfirmSuccess: () -> Unit = {},
-    voiceViewModel: VoiceViewModel = viewModel(),
-    authViewModel: AuthViewModel = viewModel(),
-    categoryViewModel: CategoryViewModel = viewModel(),
-    walletViewModel: WalletViewModel = viewModel()
+    voiceViewModel: VoiceViewModel,
+    authViewModel: AuthViewModel,
+    categoryViewModel: CategoryViewModel,
+    walletViewModel: WalletViewModel
 ) {
     val context = LocalContext.current
     val uiState by voiceViewModel.uiState.collectAsStateWithLifecycle()

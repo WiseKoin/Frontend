@@ -3,15 +3,10 @@ package com.wisekoin.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wisekoin.data.model.ReceiptResponseDto
 import com.wisekoin.data.model.TransactionRequest
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
-import com.wisekoin.ui.components.Transaction
-import com.wisekoin.ui.components.sampleTransactions
-import com.wisekoin.ui.theme.LemonDark
-import com.wisekoin.ui.theme.MintDark
-import com.wisekoin.ui.theme.PeachDark
+import com.wisekoin.data.repository.ReceiptRepository
+import com.wisekoin.data.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +31,10 @@ data class ReceiptUiState(
     val errorMessage: String? = null
 )
 
-class ReceiptViewModel : ViewModel() {
+class ReceiptViewModel(
+    private val receiptRepository: ReceiptRepository,
+    private val transactionRepository: TransactionRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReceiptUiState())
     val uiState: StateFlow<ReceiptUiState> = _uiState.asStateFlow()
@@ -61,7 +59,7 @@ class ReceiptViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.receiptApi.extractReceipt(filePart)
+                val response = receiptRepository.extractReceipt(filePart)
 
                 val formattedAmount = try {
                     NumberFormat.getNumberInstance(Locale.US).format(response.amount.toLong())
@@ -117,32 +115,6 @@ class ReceiptViewModel : ViewModel() {
         _uiState.update { it.copy(date = "Today,\n$now") }
     }
 
-    fun confirmAndSave(onSuccess: () -> Unit) {
-        val currentState = _uiState.value
-        val displayAmount = if (currentState.amount.isNotBlank()) "-${currentState.amount} ₫" else "-0 ₫"
-
-        val categoryColor = when (currentState.category.lowercase()) {
-            "dining" -> PeachDark
-            "transport" -> LemonDark
-            else -> MintDark
-        }
-
-        val newTransaction = Transaction(
-            id = System.currentTimeMillis().toString(),
-            title = currentState.storeName.ifBlank { "Uncategorized Store" },
-            category = currentState.category.ifBlank { "General" },
-            amount = displayAmount,
-            isExpense = true,
-            time = "Today, " + SimpleDateFormat("HH:mm", Locale.US).format(Date()),
-            iconBgColor = categoryColor
-        )
-
-        sampleTransactions.add(0, newTransaction)
-
-        resetState()
-        onSuccess()
-    }
-
     fun confirmAndSave(
         categoryViewModel: CategoryViewModel,
         selectedWalletId: Long?,
@@ -179,7 +151,7 @@ class ReceiptViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                RetrofitClient.transactionApi.createTransaction(
+                transactionRepository.createTransaction(
                     TransactionRequest(
                         walletId = selectedWalletId,
                         categoryId = selectedCategory.id,
@@ -197,39 +169,6 @@ class ReceiptViewModel : ViewModel() {
             } catch (e: Exception) {
                 val errorMsg = NetworkErrorMapper.message(e, "Unable to save this transaction. Please try again.")
                 onFailure(errorMsg)
-            } finally {
-                _uiState.update { it.copy(isSubmitting = false) }
-                submissionGate.finish()
-            }
-        }
-    }
-
-    fun saveFromReceipt(onSuccess: () -> Unit, onFailure: (String) -> Unit) {
-        val currentState = _uiState.value
-        val parsedAmount = currentState.amount.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO
-        if (parsedAmount <= BigDecimal.ZERO) {
-            onFailure("Invalid amount")
-            return
-        }
-        if (!submissionGate.tryStart()) return
-        _uiState.update { it.copy(isSubmitting = true) }
-        viewModelScope.launch {
-            try {
-                RetrofitClient.transactionApi.createTransaction(
-                    TransactionRequest(
-                        walletId = 1L,
-                        categoryId = 1L,
-                        amount = parsedAmount,
-                        type = "EXPENSE",
-                        note = currentState.storeName.ifBlank { null }
-                    )
-                )
-                resetState()
-                onSuccess()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (e: Exception) {
-                onFailure(NetworkErrorMapper.message(e, "Unable to save this transaction. Please try again."))
             } finally {
                 _uiState.update { it.copy(isSubmitting = false) }
                 submissionGate.finish()

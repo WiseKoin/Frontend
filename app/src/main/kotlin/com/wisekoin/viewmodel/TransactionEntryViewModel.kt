@@ -6,8 +6,10 @@ import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletResponseDto
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.DebtRepository
+import com.wisekoin.data.repository.TransactionRepository
+import com.wisekoin.data.repository.WalletRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +24,11 @@ data class TransactionEntryUiState(
     val walletLoadError: String? = null
 )
 
-class TransactionEntryViewModel : ViewModel() {
+class TransactionEntryViewModel(
+    private val transactionRepository: TransactionRepository,
+    private val debtRepository: DebtRepository,
+    private val walletRepository: WalletRepository
+) : ViewModel() {
     private val submissionGate = SubmissionGate()
     private val _uiState = MutableStateFlow(TransactionEntryUiState())
     val uiState: StateFlow<TransactionEntryUiState> = _uiState.asStateFlow()
@@ -32,7 +38,7 @@ class TransactionEntryViewModel : ViewModel() {
         _uiState.update { it.copy(isLoadingWallets = true, walletLoadError = null) }
         viewModelScope.launch {
             try {
-                val wallets = RetrofitClient.walletApi.getWallets().wallets
+                val wallets = walletRepository.getWallets().wallets
                 _uiState.update {
                     it.copy(wallets = wallets, isLoadingWallets = false, walletLoadError = null)
                 }
@@ -58,7 +64,7 @@ class TransactionEntryViewModel : ViewModel() {
         onFailure: (String) -> Unit
     ) {
         submit(
-            action = { RetrofitClient.transactionApi.createTransaction(request) },
+            action = { transactionRepository.createTransaction(request) },
             onSuccess = { onSuccess() },
             onFailure = onFailure
         )
@@ -70,7 +76,7 @@ class TransactionEntryViewModel : ViewModel() {
         onFailure: (String) -> Unit
     ) {
         submit(
-            action = { RetrofitClient.debtApi.createDebt(request) },
+            action = { debtRepository.createDebt(request) },
             onSuccess = { onSuccess() },
             onFailure = onFailure
         )
@@ -82,7 +88,7 @@ class TransactionEntryViewModel : ViewModel() {
         onFailure: (String) -> Unit
     ) {
         submit(
-            action = { RetrofitClient.walletApi.createWallet(request) },
+            action = { walletRepository.createWallet(request) },
             onSuccess = { wallet ->
                 _uiState.update { state ->
                     state.copy(wallets = (state.wallets + wallet).distinctBy { it.id })

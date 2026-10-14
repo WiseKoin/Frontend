@@ -3,7 +3,6 @@ package com.wisekoin.data.remote
 import com.wisekoin.BuildConfig
 import com.google.gson.Gson
 import com.wisekoin.data.local.SessionTokenStore
-import com.wisekoin.data.local.TokenManager
 import com.wisekoin.data.model.AuthResponse
 import com.wisekoin.data.model.RefreshTokenRequest
 import okhttp3.Authenticator
@@ -22,17 +21,11 @@ data class ErrorResponse(
     val message: String? = null
 )
 
-object RetrofitClient {
-    private var tokenManager: SessionTokenStore? = null
-    private var sessionExpiredCallback: (() -> Unit)? = null
+class RetrofitClient(
+    private val tokenManager: SessionTokenStore,
+    private val onSessionExpired: () -> Unit
+) {
     private val gson = Gson()
-
-    fun init(tokenManager: TokenManager, onSessionExpired: () -> Unit = {}) {
-        this.tokenManager = tokenManager
-        this.sessionExpiredCallback = onSessionExpired
-    }
-
-    fun getGson(): Gson = gson
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = if (BuildConfig.DEBUG) {
@@ -41,23 +34,6 @@ object RetrofitClient {
             HttpLoggingInterceptor.Level.NONE
         }
     }
-
-//    private val errorInterceptor = Interceptor { chain ->
-//        val response = chain.proceed(chain.request())
-//        if (response.code >= 400 && response.code < 600) {
-//            val body = response.body?.string()
-//            if (!body.isNullOrBlank()) {
-//                try {
-//                    val errorResponse = gson.fromJson(body, ErrorResponse::class.java)
-//                    val message = errorResponse?.error ?: errorResponse?.message ?: body
-//                    throw RuntimeException(message)
-//                } catch (e: Exception) {
-//                    throw RuntimeException("HTTP ${response.code}: $body")
-//                }
-//            }
-//        }
-//        response
-//    }
 
     private fun baseClientBuilder(): OkHttpClient.Builder = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
@@ -82,13 +58,9 @@ object RetrofitClient {
     }
 
     private val okHttpClient by lazy {
-        val sessionStore = checkNotNull(tokenManager) {
-            "RetrofitClient.init must be called before accessing an authenticated API"
-        }
-
         baseClientBuilder()
             .addInterceptor { chain ->
-                val token = sessionStore.getAccessToken()
+                val token = tokenManager.getAccessToken()
                 val request = if (token.isNullOrBlank() || chain.request().header("Authorization") != null) {
                     chain.request()
                 } else {
@@ -100,9 +72,9 @@ object RetrofitClient {
             }
             .authenticator(
                 RefreshTokenAuthenticator(
-                    tokenStore = sessionStore,
+                    tokenStore = tokenManager,
                     refreshTokens = ::refreshTokens,
-                    onSessionExpired = { sessionExpiredCallback?.invoke() }
+                    onSessionExpired = onSessionExpired
                 )
             )
             .build()

@@ -6,7 +6,7 @@ import com.wisekoin.data.model.OtpPurpose
 import com.wisekoin.data.model.OtpRequest
 import com.wisekoin.data.model.OtpRequestResponse
 import com.wisekoin.data.model.OtpVerifyRequest
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.UserApiService
 
 interface AccountSecurityRepository {
     suspend fun requestOtp(purpose: OtpPurpose): OtpRequestResponse
@@ -15,22 +15,24 @@ interface AccountSecurityRepository {
     suspend fun deleteAccount(currentPassword: String, token: String)
 }
 
-class NetworkAccountSecurityRepository : AccountSecurityRepository {
+class NetworkAccountSecurityRepository(
+    private val api: UserApiService
+) : AccountSecurityRepository {
     override suspend fun requestOtp(purpose: OtpPurpose): OtpRequestResponse =
-        RetrofitClient.userApi.requestOtp(OtpRequest(purpose))
+        api.requestOtp(OtpRequest(purpose))
 
     override suspend fun verifyOtp(purpose: OtpPurpose, code: String): String =
-        RetrofitClient.userApi.verifyOtp(OtpVerifyRequest(purpose, code)).verificationToken
+        api.verifyOtp(OtpVerifyRequest(purpose, code)).verificationToken
 
     override suspend fun changePassword(
         currentPassword: String,
         newPassword: String,
         token: String
     ) {
-        RetrofitClient.userApi.changePassword(ChangePasswordRequest(currentPassword, newPassword, token))
+        api.changePassword(ChangePasswordRequest(currentPassword, newPassword, token))
     }
 
     override suspend fun deleteAccount(currentPassword: String, token: String) {
-        RetrofitClient.userApi.deleteAccount(DeleteAccountRequest(currentPassword, token))
+        api.deleteAccount(DeleteAccountRequest(currentPassword, token))
     }
 }

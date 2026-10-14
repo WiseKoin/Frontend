@@ -4,13 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.local.SessionTokenStore
 import com.wisekoin.data.model.LoginRequest
-import com.wisekoin.data.model.RefreshTokenRequest
 import com.wisekoin.data.model.RegisterRequest
 import com.wisekoin.data.model.UpdateProfileRequest
 import com.wisekoin.data.model.UserResponseDto
-import com.wisekoin.data.remote.ErrorResponse
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,16 +40,17 @@ enum class SessionStatus {
     ERROR
 }
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(
+    private val repository: AuthRepository,
+    private val tokenManager: SessionTokenStore
+) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    private var tokenManager: SessionTokenStore? = null
     private val authSubmissionGate = SubmissionGate()
 
-    fun setTokenManager(manager: SessionTokenStore) {
-        this.tokenManager = manager
-        if (manager.hasSession()) {
+    init {
+        if (tokenManager.hasSession()) {
             resolveStoredSession()
         } else {
             _uiState.update {
@@ -68,7 +67,7 @@ class AuthViewModel : ViewModel() {
     }
 
     fun retrySessionResolution() {
-        if (tokenManager?.hasSession() == true) {
+        if (tokenManager.hasSession()) {
             resolveStoredSession()
         } else {
             onSessionExpired()
@@ -76,7 +75,7 @@ class AuthViewModel : ViewModel() {
     }
 
     fun onSessionExpired() {
-        tokenManager?.clearTokens()
+        tokenManager.clearTokens()
         _uiState.update { current ->
             val alreadyExpired = current.sessionStatus == SessionStatus.GUEST &&
                 current.sessionExpiryVersion > 0
@@ -148,8 +147,8 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.authApi.login(LoginRequest(email, password))
-                tokenManager?.saveTokens(response.accessToken, response.refreshToken)
+                val response = repository.login(LoginRequest(email, password))
+                tokenManager.saveTokens(response.accessToken, response.refreshToken)
                 fetchUser(isSessionResolution = true, onSuccess = onSuccess)
             } catch (error: CancellationException) {
                 throw error
@@ -186,10 +185,10 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.authApi.register(
+                val response = repository.register(
                     RegisterRequest(username = username, email = email, password = password, phone = phone)
                 )
-                tokenManager?.saveTokens(response.accessToken, response.refreshToken)
+                tokenManager.saveTokens(response.accessToken, response.refreshToken)
                 _uiState.update {
                     it.copy(
                         isLoggedIn = false,
@@ -211,34 +210,21 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun loginWithSocial(provider: String, onSuccess: () -> Unit) {
-        _uiState.update {
-            it.copy(
-                isLoggedIn = true,
-                sessionStatus = SessionStatus.AUTHENTICATED,
-                name = "User ($provider)",
-                email = "user@$provider.com"
-            )
-        }
-        onSuccess()
-    }
-
     fun logout(onComplete: () -> Unit = {}) {
-        val manager = tokenManager
-        val refreshToken = manager?.getRefreshToken()
+        val refreshToken = tokenManager.getRefreshToken()
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             try {
                 if (!refreshToken.isNullOrBlank()) {
-                    RetrofitClient.authApi.logout(RefreshTokenRequest(refreshToken))
+                    repository.logout(refreshToken)
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
                 // Local logout must still complete if the API is unavailable.
             } finally {
-                manager?.clearTokens()
+                tokenManager.clearTokens()
                 _uiState.update {
                     it.copy(
                         isLoggedIn = false,
@@ -276,7 +262,7 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.userApi.updateProfile(
+                val response = repository.updateProfile(
                     UpdateProfileRequest(
                         username = username,
                         email = currentEmail,
@@ -307,7 +293,7 @@ class AuthViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                val user = RetrofitClient.userApi.getCurrentUser()
+                val user = repository.getCurrentUser()
                 _uiState.update {
                     it.copy(
                         currentUser = user,
@@ -323,7 +309,7 @@ class AuthViewModel : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                if (tokenManager?.hasSession() != true) {
+                if (!tokenManager.hasSession()) {
                     onSessionExpired()
                 } else if (isSessionResolution) {
                     _uiState.update {

@@ -6,9 +6,8 @@ import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.data.model.TransactionResponseDto
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletResponseDto
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
-import com.wisekoin.data.repository.NetworkWalletRepository
+import com.wisekoin.data.repository.TransactionRepository
 import com.wisekoin.data.repository.WalletRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +43,8 @@ data class WalletUiState(
 )
 
 class WalletViewModel(
-    private val walletRepository: WalletRepository = NetworkWalletRepository()
+    private val walletRepository: WalletRepository,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WalletUiState())
@@ -187,7 +187,7 @@ class WalletViewModel(
                 val transactions = mutableListOf<TransactionResponseDto>()
                 var page = 0
                 do {
-                    val response = RetrofitClient.transactionApi.getRecentTransactions(
+                    val response = transactionRepository.getTransactions(
                         page = page,
                         size = REPORT_PAGE_SIZE,
                         startDate = range.startDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
@@ -238,7 +238,7 @@ class WalletViewModel(
 
     private suspend fun fetchRecentTransactions() {
         try {
-            val response = RetrofitClient.transactionApi.getRecentTransactions(page = 0, size = 10)
+            val response = transactionRepository.getTransactions(page = 0, size = 10)
             _uiState.update { it.copy(recentTransactions = response.content) }
         } catch (error: CancellationException) {
             throw error
@@ -252,7 +252,7 @@ class WalletViewModel(
     private suspend fun fetchMonthlyStats() {
         try {
             val year = LocalDate.now().year
-            val stats = RetrofitClient.transactionApi.getMonthlyStats(year)
+            val stats = transactionRepository.getMonthlyStats(year)
             _uiState.update { it.copy(monthlyStats = stats) }
 
             val currentMonth = LocalDate.now().monthValue

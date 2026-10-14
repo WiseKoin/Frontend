@@ -8,8 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.VoiceResponseDto
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.ReceiptRepository
+import com.wisekoin.data.repository.TransactionRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,7 +99,10 @@ data class VoiceUiState(
     val isSubmitting: Boolean = false
 )
 
-class VoiceViewModel : ViewModel() {
+class VoiceViewModel(
+    private val receiptRepository: ReceiptRepository,
+    private val transactionRepository: TransactionRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VoiceUiState())
     val uiState: StateFlow<VoiceUiState> = _uiState.asStateFlow()
@@ -170,7 +174,7 @@ class VoiceViewModel : ViewModel() {
                 val requestBody = file.asRequestBody("audio/mp4".toMediaTypeOrNull())
                 val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
 
-                val response = RetrofitClient.receiptApi.extractVoice(part)
+                val response = receiptRepository.extractVoice(part)
 
                 val formattedAmount = try {
                     NumberFormat.getNumberInstance(Locale.US).format(response.amount.toLong())
@@ -260,7 +264,7 @@ class VoiceViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                RetrofitClient.transactionApi.createTransaction(
+                transactionRepository.createTransaction(
                     TransactionRequest(
                         walletId = selectedWalletId,
                         categoryId = selectedCategory.id,

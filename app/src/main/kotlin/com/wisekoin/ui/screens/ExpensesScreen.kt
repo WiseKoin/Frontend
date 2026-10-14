@@ -23,7 +23,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.data.model.TransactionResponseDto
 import com.wisekoin.R
@@ -67,8 +66,8 @@ private fun getWeeklyCashFlow(transactions: List<TransactionResponseDto>): List<
 
 @Composable
 fun ExpensesScreen(
-    walletViewModel: WalletViewModel = viewModel(),
-    categoryViewModel: CategoryViewModel = viewModel(),
+    walletViewModel: WalletViewModel,
+    categoryViewModel: CategoryViewModel,
     isLoggedIn: Boolean = false
 ) {
     val state by walletViewModel.uiState.collectAsStateWithLifecycle()

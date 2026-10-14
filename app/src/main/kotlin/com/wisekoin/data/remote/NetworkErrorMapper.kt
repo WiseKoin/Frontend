@@ -1,5 +1,6 @@
 package com.wisekoin.data.remote
 
+import com.google.gson.Gson
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -27,6 +28,8 @@ data class UserFacingError(
 )
 
 object NetworkErrorMapper {
+    private val gson = Gson()
+
     fun map(error: Throwable, fallbackMessage: String): UserFacingError {
         if (error is SocketTimeoutException) {
             return UserFacingError(
@@ -49,7 +52,7 @@ object NetworkErrorMapper {
         val retryAfter = response?.headers()?.get("Retry-After")?.toLongOrNull()
         val errorResponse = response?.errorBody()?.string()?.let { body ->
             runCatching {
-                RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)
+                gson.fromJson(body, ErrorResponse::class.java)
             }.getOrNull()
         }
         val errorCode = errorResponse?.code

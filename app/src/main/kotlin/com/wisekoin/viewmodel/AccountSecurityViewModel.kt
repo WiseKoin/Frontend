@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.OtpPurpose
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.AccountSecurityRepository
-import com.wisekoin.data.repository.NetworkAccountSecurityRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,7 +27,7 @@ data class AccountSecurityUiState(
 )
 
 class AccountSecurityViewModel(
-    private val repository: AccountSecurityRepository = NetworkAccountSecurityRepository()
+    private val repository: AccountSecurityRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AccountSecurityUiState())
     val uiState: StateFlow<AccountSecurityUiState> = _uiState.asStateFlow()

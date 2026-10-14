@@ -3,7 +3,7 @@ package com.wisekoin.data.repository
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.data.model.WalletSummaryResponseDto
-import com.wisekoin.data.remote.RetrofitClient
+import com.wisekoin.data.remote.WalletApiService
 
 interface WalletRepository {
     suspend fun getWallets(): WalletSummaryResponseDto
@@ -11,13 +11,15 @@ interface WalletRepository {
     suspend fun deleteWallet(walletId: Long)
 }
 
-class NetworkWalletRepository : WalletRepository {
-    override suspend fun getWallets(): WalletSummaryResponseDto = RetrofitClient.walletApi.getWallets()
+class NetworkWalletRepository(
+    private val api: WalletApiService
+) : WalletRepository {
+    override suspend fun getWallets(): WalletSummaryResponseDto = api.getWallets()
 
     override suspend fun createWallet(request: WalletRequest): WalletResponseDto =
-        RetrofitClient.walletApi.createWallet(request)
+        api.createWallet(request)
 
     override suspend fun deleteWallet(walletId: Long) {
-        RetrofitClient.walletApi.deleteWallet(walletId)
+        api.deleteWallet(walletId)
     }
 }

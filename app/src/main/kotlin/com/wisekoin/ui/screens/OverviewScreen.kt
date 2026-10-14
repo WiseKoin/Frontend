@@ -1,6 +1,7 @@
 package com.wisekoin.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -9,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +45,7 @@ fun OverviewScreen(
 ) {
     val state by walletViewModel.uiState.collectAsStateWithLifecycle()
     var showCreateWalletDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedWallet by remember { mutableStateOf<WalletResponseDto?>(null) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
@@ -110,7 +113,8 @@ fun OverviewScreen(
                     wallets = if (isLoggedIn) state.wallets else emptyList(),
                     isLoading = isLoggedIn && state.isLoading,
                     canAddWallet = isLoggedIn,
-                    onAddWallet = { showCreateWalletDialog = true }
+                    onAddWallet = { showCreateWalletDialog = true },
+                    onWalletClick = { selectedWallet = it }
                 )
             }
 
@@ -180,6 +184,21 @@ fun OverviewScreen(
             }
         )
     }
+
+    selectedWallet?.let { wallet ->
+        WalletDetailsDialog(
+            wallet = wallet,
+            isDeleting = state.deletingWalletId == wallet.id,
+            errorMessage = state.walletMutationError,
+            onDismiss = {
+                walletViewModel.clearWalletMutationError()
+                selectedWallet = null
+            },
+            onDelete = {
+                walletViewModel.deleteWallet(wallet.id) { selectedWallet = null }
+            }
+        )
+    }
 }
 
 @Composable
@@ -187,7 +206,8 @@ private fun WalletOverviewSection(
     wallets: List<WalletResponseDto>,
     isLoading: Boolean,
     canAddWallet: Boolean,
-    onAddWallet: () -> Unit
+    onAddWallet: () -> Unit,
+    onWalletClick: (WalletResponseDto) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -238,7 +258,7 @@ private fun WalletOverviewSection(
             else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(wallets, key = { it.id }) { wallet ->
                     Card(
-                        modifier = Modifier.width(190.dp),
+                        modifier = Modifier.width(190.dp).clickable { onWalletClick(wallet) },
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = CandyBg),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -279,6 +299,64 @@ private fun WalletOverviewSection(
             }
         }
     }
+}
+
+@Composable
+private fun WalletDetailsDialog(
+    wallet: WalletResponseDto,
+    isDeleting: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var confirmDelete by rememberSaveable(wallet.id) { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!isDeleting) onDismiss() },
+        title = { Text(stringResource(R.string.wallet_details), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(wallet.name, style = MaterialTheme.typography.titleLarge, color = TextDark)
+                Text(wallet.balance.formatVND(), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(walletTypeLabel(wallet.type)), color = TextLight)
+                errorMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+                if (confirmDelete) {
+                    Text(
+                        stringResource(R.string.delete_wallet_confirmation, wallet.name),
+                        color = PrimaryRed,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (confirmDelete) onDelete() else confirmDelete = true
+                },
+                enabled = !isDeleting,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
+            ) {
+                if (isDeleting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.delete_wallet))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isDeleting) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

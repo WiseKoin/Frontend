@@ -29,3 +29,9 @@ data class WalletRequest(
     @SerializedName("initialBalance")
     val initialBalance: BigDecimal
 )
+
+data class WalletUpdateRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("walletType") val walletType: String? = null,
+    @SerializedName("balance") val balance: BigDecimal? = null
+)

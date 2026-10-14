@@ -47,16 +47,27 @@ object NetworkErrorMapper {
             ?: return UserFacingError(NetworkErrorKind.UNKNOWN, fallbackMessage, canRetry = true)
         val response = httpError.response()
         val retryAfter = response?.headers()?.get("Retry-After")?.toLongOrNull()
-        val errorCode = response?.errorBody()?.string()?.let { body ->
+        val errorResponse = response?.errorBody()?.string()?.let { body ->
             runCatching {
-                RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)?.code
+                RetrofitClient.getGson().fromJson(body, ErrorResponse::class.java)
             }.getOrNull()
         }
+        val errorCode = errorResponse?.code
 
         return when {
             errorCode == "INSUFFICIENT_BALANCE" -> UserFacingError(
                 NetworkErrorKind.INSUFFICIENT_BALANCE,
                 "The selected wallet does not have enough available balance.",
+                canRetry = false
+            )
+            errorCode == "OTP_INVALID" -> UserFacingError(
+                NetworkErrorKind.VALIDATION,
+                errorResponse.error ?: "The verification code is invalid or expired.",
+                canRetry = false
+            )
+            errorCode == "INVALID_CURRENT_PASSWORD" -> UserFacingError(
+                NetworkErrorKind.VALIDATION,
+                "The current password is incorrect.",
                 canRetry = false
             )
             httpError.code() == 400 || httpError.code() == 422 -> UserFacingError(

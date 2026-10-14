@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -58,6 +61,8 @@ fun DebtManagementScreen(
     val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
     var isLentTab by remember { mutableStateOf(true) }
     var stateToRepay by remember { mutableStateOf<Pair<DebtResponse, Boolean>?>(null) }
+    var debtToEdit by remember { mutableStateOf<DebtResponse?>(null) }
+    var debtToDelete by remember { mutableStateOf<DebtResponse?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -113,6 +118,11 @@ fun DebtManagementScreen(
         state.errorMessage?.let { message ->
             item {
                 NetworkErrorBanner(message = message, onRetry = { debtViewModel.loadDebts() })
+            }
+        }
+        state.mutationError?.let { message ->
+            item {
+                NetworkErrorBanner(message = message, onRetry = debtViewModel::clearError)
             }
         }
 
@@ -180,10 +190,12 @@ fun DebtManagementScreen(
         } else {
             val currentList: List<DebtResponse> = if (isLentTab) state.lentDebts else state.borrowedDebts
 
-            items(currentList) { debt: DebtResponse ->
-                DebtCardItem(
+            items(currentList, key = { it.id }) { debt: DebtResponse ->
+                SwipeableDebtItem(
                     debt = debt,
                     isLent = isLentTab,
+                    onEdit = { debtToEdit = debt },
+                    onDelete = { debtToDelete = debt },
                     onPaid = {
                         stateToRepay = debt to isLentTab
                     }
@@ -242,13 +254,122 @@ fun DebtManagementScreen(
             }
         )
     }
+
+    debtToEdit?.let { debt ->
+        EditDebtDialog(
+            debt = debt,
+            isSubmitting = state.editingDebtId == debt.id,
+            errorMessage = state.mutationError,
+            onDismiss = {
+                debtViewModel.clearError()
+                debtToEdit = null
+            },
+            onSave = { request ->
+                scope.launch {
+                    if (debtViewModel.updateDebt(debt.id, request)) debtToEdit = null
+                }
+            }
+        )
+    }
+
+    debtToDelete?.let { debt ->
+        AlertDialog(
+            onDismissRequest = {
+                if (state.deletingDebtId == null) {
+                    debtViewModel.clearError()
+                    debtToDelete = null
+                }
+            },
+            title = { Text(stringResource(R.string.delete_debt)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.delete_debt_confirmation, debt.counterpartName))
+                    state.mutationError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            if (debtViewModel.deleteDebt(debt.id)) debtToDelete = null
+                        }
+                    },
+                    enabled = state.deletingDebtId == null,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
+                ) {
+                    if (state.deletingDebtId == debt.id) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.delete))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { debtToDelete = null },
+                    enabled = state.deletingDebtId == null
+                ) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableDebtItem(
+    debt: DebtResponse,
+    isLent: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onPaid: () -> Unit
+) {
+    val swipeState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value -> value != SwipeToDismissBoxValue.EndToStart }
+    )
+    SwipeToDismissBox(
+        state = swipeState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(PrimaryRed)
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.delete_debt),
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    ) {
+        DebtCardItem(debt, isLent, onEdit, onPaid)
+    }
 }
 
 @Composable
-fun DebtCardItem(debt: DebtResponse, isLent: Boolean, onPaid: () -> Unit) {
+fun DebtCardItem(
+    debt: DebtResponse,
+    isLent: Boolean,
+    onEdit: () -> Unit,
+    onPaid: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onEdit)
             .neomorphicBox(cornerRadius = 20.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
@@ -330,9 +451,140 @@ fun DebtCardItem(debt: DebtResponse, isLent: Boolean, onPaid: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.edit_debt),
+                    tint = TextLight,
+                    modifier = Modifier.padding(top = 4.dp).size(16.dp)
+                )
             }
         }
     }
+}
+
+@Composable
+private fun EditDebtDialog(
+    debt: DebtResponse,
+    isSubmitting: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onSave: (com.wisekoin.data.model.DebtRequest) -> Unit
+) {
+    var counterpartName by rememberSaveable(debt.id) { mutableStateOf(debt.counterpartName) }
+    var type by rememberSaveable(debt.id) { mutableStateOf(debt.type) }
+    var amount by rememberSaveable(debt.id) { mutableStateOf(formatAmount(debt.totalAmount.toPlainString())) }
+    var dueDate by rememberSaveable(debt.id) { mutableStateOf(debt.dueDate.orEmpty()) }
+    var note by rememberSaveable(debt.id) { mutableStateOf(debt.note.orEmpty()) }
+    var validationMessage by rememberSaveable(debt.id) { mutableStateOf<Int?>(null) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        title = { Text(stringResource(R.string.edit_debt), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = counterpartName,
+                    onValueChange = { counterpartName = it; validationMessage = null },
+                    label = { Text(stringResource(R.string.counterpart_name)) },
+                    singleLine = true,
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("LEND", "BORROW").forEach { option ->
+                        OutlinedButton(
+                            onClick = { type = option },
+                            enabled = !isSubmitting,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (type == option) MintDark.copy(alpha = 0.25f) else Color.Transparent
+                            )
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (option == "LEND") R.string.debt_type_lend
+                                    else R.string.debt_type_borrow
+                                )
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = formatAmount(it); validationMessage = null },
+                    label = { Text(stringResource(R.string.total_amount_vnd)) },
+                    singleLine = true,
+                    enabled = !isSubmitting,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = dueDate,
+                    onValueChange = { dueDate = it.take(10); validationMessage = null },
+                    label = { Text(stringResource(R.string.due_date_optional)) },
+                    singleLine = true,
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(stringResource(R.string.note_optional)) },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                validationMessage?.let {
+                    Text(stringResource(it), color = MaterialTheme.colorScheme.error)
+                }
+                errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    val parsedDate = dueDate.takeIf(String::isNotBlank)?.let {
+                        runCatching { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
+                    }
+                    validationMessage = when {
+                        counterpartName.isBlank() -> R.string.debt_name_required
+                        parsedAmount == null || parsedAmount <= BigDecimal.ZERO ||
+                            parsedAmount < debt.paidAmount -> R.string.invalid_debt_amount
+                        dueDate.isNotBlank() && parsedDate == null -> R.string.invalid_due_date
+                        else -> null
+                    }
+                    if (validationMessage == null) {
+                        onSave(
+                            com.wisekoin.data.model.DebtRequest(
+                                counterpartName = counterpartName.trim(),
+                                type = type,
+                                totalAmount = parsedAmount!!,
+                                dueDate = parsedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                                note = note.trim().ifBlank { null }
+                            )
+                        )
+                    }
+                },
+                enabled = !isSubmitting
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.save_changes))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

@@ -32,6 +32,7 @@ import androidx.navigation.navArgument
 import com.wisekoin.ui.components.WiseKoinBottomBar
 import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
+import com.wisekoin.viewmodel.AccountSecurityViewModel
 import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 import com.wisekoin.viewmodel.VoiceViewModel
@@ -39,7 +40,6 @@ import com.wisekoin.viewmodel.WalletViewModel
 import com.wisekoin.viewmodel.SessionStatus
 import com.wisekoin.R
 
-import androidx.compose.runtime.collectAsState
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
 import com.wisekoin.viewmodel.TransactionEntryViewModel
@@ -48,6 +48,9 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Profile : Screen("profile")
+    object AccountSecurity : Screen("account_security")
+    object ChangePassword : Screen("change_password")
+    object DeleteAccount : Screen("delete_account")
     object Overview : Screen("overview")
     object Expenses : Screen("expenses")
     object Savings : Screen("savings")
@@ -150,6 +153,7 @@ fun WiseKoinNavGraph(
     val receiptViewModel: ReceiptViewModel = viewModel()
     val goalViewModel: GoalViewModel = viewModel()
     val transactionEntryViewModel: TransactionEntryViewModel = viewModel()
+    val accountSecurityViewModel: AccountSecurityViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -205,11 +209,51 @@ fun WiseKoinNavGraph(
                         restoreState = true
                     }
                 },
+                onAccountSecurityClick = {
+                    navController.navigate(Screen.AccountSecurity.route)
+                },
                 onTabSelected = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.Overview.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
+                    }
+                }
+            )
+        }
+
+        composable(Screen.AccountSecurity.route) {
+            AccountSecurityScreen(
+                email = authUiState.email,
+                onBack = { navController.popBackStack() },
+                onChangePassword = { navController.navigate(Screen.ChangePassword.route) },
+                onDeleteAccount = { navController.navigate(Screen.DeleteAccount.route) }
+            )
+        }
+
+        composable(Screen.ChangePassword.route) {
+            ChangePasswordScreen(
+                viewModel = accountSecurityViewModel,
+                onBack = { navController.popBackStack() },
+                onPasswordChanged = {
+                    authViewModel.logout {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.DeleteAccount.route) {
+            DeleteAccountScreen(
+                viewModel = accountSecurityViewModel,
+                onBack = { navController.popBackStack() },
+                onAccountDeleted = {
+                    authViewModel.logout {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
                     }
                 }
             )

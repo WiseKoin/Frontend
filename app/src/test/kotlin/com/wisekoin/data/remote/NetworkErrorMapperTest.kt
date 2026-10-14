@@ -58,4 +58,37 @@ class NetworkErrorMapperTest {
         assertEquals(NetworkErrorKind.TIMEOUT, error.kind)
         assertTrue(error.canRetry)
     }
+
+    @Test
+    fun `otp error exposes only server approved attempt guidance`() {
+        val exception = HttpException(
+            Response.error<Any>(
+                400,
+                "{\"code\":\"OTP_INVALID\",\"error\":\"Incorrect verification code. 2 attempt(s) remaining.\"}"
+                    .toResponseBody()
+            )
+        )
+
+        val error = NetworkErrorMapper.map(exception, "Fallback")
+
+        assertEquals(NetworkErrorKind.VALIDATION, error.kind)
+        assertEquals("Incorrect verification code. 2 attempt(s) remaining.", error.message)
+        assertFalse(error.canRetry)
+    }
+
+    @Test
+    fun `current password error uses fixed safe copy`() {
+        val exception = HttpException(
+            Response.error<Any>(
+                400,
+                "{\"code\":\"INVALID_CURRENT_PASSWORD\",\"error\":\"internal\"}"
+                    .toResponseBody()
+            )
+        )
+
+        val error = NetworkErrorMapper.map(exception, "Fallback")
+
+        assertEquals("The current password is incorrect.", error.message)
+        assertFalse(error.message.contains("internal"))
+    }
 }

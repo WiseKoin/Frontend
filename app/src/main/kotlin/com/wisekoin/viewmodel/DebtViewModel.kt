@@ -5,8 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.DebtRepaymentRequest
 import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
-import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.DebtRepository
+import com.wisekoin.data.repository.NetworkDebtRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,10 @@ data class DebtUiState(
     val errorMessage: String? = null,
     val isRepaying: Boolean = false,
     val isCreatingDebt: Boolean = false,
-    val repaymentFailed: Boolean = false
+    val repaymentFailed: Boolean = false,
+    val editingDebtId: Long? = null,
+    val deletingDebtId: Long? = null,
+    val mutationError: String? = null
 ) {
     val totalLent: BigDecimal
         get() = debts.filter { it.type == "LEND" }.sumOf { it.remainingAmount }
@@ -36,19 +40,22 @@ data class DebtUiState(
         get() = debts.filter { it.type == "BORROW" }
 }
 
-class DebtViewModel : ViewModel() {
+class DebtViewModel(
+    private val debtRepository: DebtRepository = NetworkDebtRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DebtUiState())
     val uiState: StateFlow<DebtUiState> = _uiState.asStateFlow()
     private val debtCreationGate = SubmissionGate()
     private val repaymentGate = SubmissionGate()
+    private val mutationGate = SubmissionGate()
 
     fun loadDebts(status: String? = null) {
         if (_uiState.value.isLoading) return
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                val debts = RetrofitClient.debtApi.getDebts(status = status)
+                val debts = debtRepository.getDebts(status = status)
                 _uiState.update { it.copy(debts = debts, isLoading = false) }
             } catch (error: CancellationException) {
                 throw error
@@ -67,7 +74,7 @@ class DebtViewModel : ViewModel() {
         if (!debtCreationGate.tryStart()) return null
         _uiState.update { it.copy(isCreatingDebt = true) }
         return try {
-            val response = RetrofitClient.debtApi.createDebt(request)
+            val response = debtRepository.createDebt(request)
             response.id
         } catch (error: CancellationException) {
             throw error
@@ -100,7 +107,7 @@ class DebtViewModel : ViewModel() {
                 categoryId = categoryId,
                 note = note
             )
-            RetrofitClient.debtApi.repayDebt(debtId, request)
+            debtRepository.repayDebt(debtId, request)
             loadDebts()
             true
         } catch (error: CancellationException) {
@@ -115,6 +122,62 @@ class DebtViewModel : ViewModel() {
     }
 
     fun clearError() {
-        _uiState.update { it.copy(errorMessage = null, repaymentFailed = false) }
+        _uiState.update {
+            it.copy(errorMessage = null, repaymentFailed = false, mutationError = null)
+        }
+    }
+
+    suspend fun updateDebt(debtId: Long, request: DebtRequest): Boolean {
+        if (!mutationGate.tryStart()) return false
+        _uiState.update { it.copy(editingDebtId = debtId, mutationError = null) }
+        return try {
+            val updated = debtRepository.updateDebt(debtId, request)
+            _uiState.update { state ->
+                state.copy(debts = state.debts.map { if (it.id == debtId) updated else it })
+            }
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            _uiState.update {
+                it.copy(
+                    mutationError = NetworkErrorMapper.message(
+                        error,
+                        "Unable to update this debt. Review the details and try again."
+                    )
+                )
+            }
+            false
+        } finally {
+            _uiState.update { it.copy(editingDebtId = null) }
+            mutationGate.finish()
+        }
+    }
+
+    suspend fun deleteDebt(debtId: Long): Boolean {
+        if (!mutationGate.tryStart()) return false
+        _uiState.update { it.copy(deletingDebtId = debtId, mutationError = null) }
+        return try {
+            debtRepository.deleteDebt(debtId)
+            _uiState.update { state ->
+                state.copy(debts = state.debts.filterNot { it.id == debtId })
+            }
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            _uiState.update {
+                it.copy(
+                    mutationError = NetworkErrorMapper.message(
+                        error,
+                        "This debt cannot be deleted because it has repayment transactions."
+                    )
+                )
+            }
+            false
+        } finally {
+            _uiState.update { it.copy(deletingDebtId = null) }
+            mutationGate.finish()
+        }
     }
 }

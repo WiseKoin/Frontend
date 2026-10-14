@@ -8,6 +8,8 @@ import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.NetworkWalletRepository
+import com.wisekoin.data.repository.WalletRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,11 +37,15 @@ data class WalletUiState(
     val isCreatingWallet: Boolean = false,
     val error: String? = null,
     val walletCreationFailed: Boolean = false,
+    val deletingWalletId: Long? = null,
+    val walletMutationError: String? = null,
     val currentMonthIncome: BigDecimal = BigDecimal.ZERO,
     val currentMonthExpense: BigDecimal = BigDecimal.ZERO
 )
 
-class WalletViewModel : ViewModel() {
+class WalletViewModel(
+    private val walletRepository: WalletRepository = NetworkWalletRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WalletUiState())
     val uiState: StateFlow<WalletUiState> = _uiState.asStateFlow()
@@ -47,6 +53,7 @@ class WalletViewModel : ViewModel() {
     private var refreshJob: Job? = null
     private var reportRequestId = 0L
     private val walletCreationGate = SubmissionGate()
+    private val walletDeletionGate = SubmissionGate()
 
     fun refreshAll() {
         startRefresh(showLoading = true)
@@ -96,14 +103,14 @@ class WalletViewModel : ViewModel() {
         _uiState.update { it.copy(isCreatingWallet = true, walletCreationFailed = false) }
         viewModelScope.launch {
             try {
-                RetrofitClient.walletApi.createWallet(
+                walletRepository.createWallet(
                     WalletRequest(
                         name = name.trim(),
                         walletType = type,
                         initialBalance = initialBalance
                     )
                 )
-                val summary = RetrofitClient.walletApi.getWallets()
+                val summary = walletRepository.getWallets()
                 _uiState.update {
                     it.copy(
                         totalBalance = summary.totalBalance,
@@ -130,6 +137,36 @@ class WalletViewModel : ViewModel() {
 
     fun clearWalletCreationError() {
         _uiState.update { it.copy(walletCreationFailed = false) }
+    }
+
+    fun deleteWallet(walletId: Long, onSuccess: () -> Unit) {
+        if (!walletDeletionGate.tryStart()) return
+        _uiState.update { it.copy(deletingWalletId = walletId, walletMutationError = null) }
+        viewModelScope.launch {
+            try {
+                walletRepository.deleteWallet(walletId)
+                val summary = walletRepository.getWallets()
+                _uiState.update {
+                    it.copy(totalBalance = summary.totalBalance, wallets = summary.wallets)
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                val fallback =
+                    "This wallet cannot be deleted while transactions or recurring payments use it."
+                _uiState.update {
+                    it.copy(walletMutationError = NetworkErrorMapper.message(error, fallback))
+                }
+            } finally {
+                _uiState.update { it.copy(deletingWalletId = null) }
+                walletDeletionGate.finish()
+            }
+        }
+    }
+
+    fun clearWalletMutationError() {
+        _uiState.update { it.copy(walletMutationError = null) }
     }
 
     fun loadTransactionReport(period: TransactionReportPeriod) {
@@ -183,7 +220,7 @@ class WalletViewModel : ViewModel() {
 
     private suspend fun fetchWallets() {
         try {
-            val summary = RetrofitClient.walletApi.getWallets()
+            val summary = walletRepository.getWallets()
             _uiState.update {
                 it.copy(
                     totalBalance = summary.totalBalance,

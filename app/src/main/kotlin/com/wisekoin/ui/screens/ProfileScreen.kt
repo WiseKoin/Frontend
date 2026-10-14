@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +54,7 @@ fun ProfileScreen(
     viewModel: AuthViewModel,
     onLogoutClick: () -> Unit,
     onLoginClick: () -> Unit = {},
+    onAccountSecurityClick: () -> Unit = {},
     onTabSelected: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -292,7 +295,7 @@ fun ProfileScreen(
                         },
                         onClick = {
                             showAccountMenu = false
-                            Toast.makeText(context, "Password change not supported", Toast.LENGTH_SHORT).show()
+                            onAccountSecurityClick()
                         }
                     )
 
@@ -327,6 +330,16 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (uiState.isLoggedIn) {
+                PreferenceItem(
+                    title = stringResource(com.wisekoin.R.string.security_and_privacy),
+                    icon = Icons.Default.Security,
+                    iconTint = PrimaryRed,
+                    onClick = onAccountSecurityClick
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             PreferenceItem(
                 title = "Notifications",

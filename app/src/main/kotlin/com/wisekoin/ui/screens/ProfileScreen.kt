@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpCenter
 import androidx.compose.material.icons.filled.Login
@@ -63,6 +64,7 @@ fun ProfileScreen(
     var showAccountMenu by remember { mutableStateOf(false) }
     var editingField by remember { mutableStateOf<String?>(null) }
     var editValue by remember { mutableStateOf("") }
+    var showCurrencyDialog by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -339,6 +341,17 @@ fun ProfileScreen(
                     onClick = onAccountSecurityClick
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                PreferenceItem(
+                    title = stringResource(
+                        com.wisekoin.R.string.base_currency_value,
+                        uiState.currentUser?.baseCurrency ?: "VND"
+                    ),
+                    icon = Icons.Default.CurrencyExchange,
+                    iconTint = BrandGreenDark,
+                    onClick = { showCurrencyDialog = true }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             PreferenceItem(
@@ -513,6 +526,65 @@ fun ProfileScreen(
                     ) {
                         Text("Save", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
+                }
+            }
+        )
+    }
+
+    if (showCurrencyDialog) {
+        val currencies = listOf("VND", "USD", "EUR", "GBP", "JPY", "KRW", "SGD", "AUD", "CAD")
+        var selectedCurrency by remember(uiState.currentUser?.baseCurrency) {
+            mutableStateOf(uiState.currentUser?.baseCurrency ?: "VND")
+        }
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isUpdatingCurrency) showCurrencyDialog = false
+            },
+            title = { Text(stringResource(com.wisekoin.R.string.base_currency)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(com.wisekoin.R.string.base_currency_description))
+                    currencies.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { currency ->
+                                FilterChip(
+                                    selected = selectedCurrency == currency,
+                                    onClick = { selectedCurrency = currency },
+                                    enabled = !uiState.isUpdatingCurrency,
+                                    label = { Text(currency) }
+                                )
+                            }
+                        }
+                    }
+                    uiState.updateErrorMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateBaseCurrency(
+                            selectedCurrency,
+                            onSuccess = { showCurrencyDialog = false },
+                            onError = {}
+                        )
+                    },
+                    enabled = !uiState.isUpdatingCurrency
+                ) {
+                    if (uiState.isUpdatingCurrency) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(com.wisekoin.R.string.save_changes))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCurrencyDialog = false },
+                    enabled = !uiState.isUpdatingCurrency
+                ) {
+                    Text(stringResource(com.wisekoin.R.string.cancel))
                 }
             }
         )

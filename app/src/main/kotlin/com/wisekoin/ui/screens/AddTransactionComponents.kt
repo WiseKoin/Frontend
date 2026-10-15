@@ -3,6 +3,7 @@ package com.wisekoin.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
@@ -49,6 +50,7 @@ import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
+import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.viewmodel.TransactionEntryViewModel
 import kotlin.math.abs
 import java.math.BigDecimal
@@ -192,6 +194,8 @@ internal fun MiddleDynamicSection(
     isLoggedIn: Boolean,
     categoryUiState: com.wisekoin.viewmodel.CategoryUiState,
     onCreateCategory: (String, String) -> Unit,
+    onUpdateCategory: (CategoryResponse, String, String, () -> Unit) -> Unit,
+    onDeleteCategory: (CategoryResponse, () -> Unit) -> Unit,
     counterpartName: String,
     onCounterpartNameChange: (String) -> Unit,
     debtDueDateMillis: Long?,
@@ -216,7 +220,9 @@ internal fun MiddleDynamicSection(
             onCategorySelect = onCategorySelect,
             isLoggedIn = isLoggedIn,
             categoryUiState = categoryUiState,
-            onCreateCategory = onCreateCategory
+            onCreateCategory = onCreateCategory,
+            onUpdateCategory = onUpdateCategory,
+            onDeleteCategory = onDeleteCategory
         )
     }
 }
@@ -273,7 +279,7 @@ internal fun LendBorrowFields(
 // -------------------------------------------------------------
 // 4. Lưới danh mục (Category Grid) từ Backend
 // -------------------------------------------------------------
-private fun getIconForCategory(iconName: String?): ImageVector {
+internal fun getIconForCategory(iconName: String?): ImageVector {
     return when (iconName?.lowercase()) {
         "restaurant", "dining" -> Icons.Outlined.Restaurant
         "transport", "car" -> Icons.Outlined.DirectionsCar
@@ -297,10 +303,13 @@ internal fun CategoryCard(
     onCategorySelect: (String, Long?) -> Unit,
     isLoggedIn: Boolean,
     categoryUiState: com.wisekoin.viewmodel.CategoryUiState,
-    onCreateCategory: (String, String) -> Unit
+    onCreateCategory: (String, String) -> Unit,
+    onUpdateCategory: (CategoryResponse, String, String, () -> Unit) -> Unit,
+    onDeleteCategory: (CategoryResponse, () -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
+    var categoryToManage by remember { mutableStateOf<CategoryResponse?>(null) }
 
     Box(
         modifier = Modifier
@@ -397,7 +406,8 @@ internal fun CategoryCard(
                                     id = cat.id,
                                     icon = getIconForCategory(cat.icon),
                                     isSelected = selectedCategoryId == cat.id,
-                                    onClick = { onCategorySelect(cat.name, cat.id) }
+                                    onClick = { onCategorySelect(cat.name, cat.id) },
+                                    onLongClick = { categoryToManage = cat }
                                 )
                                 Spacer(Modifier.width(8.dp))
                             }
@@ -418,15 +428,40 @@ internal fun CategoryCard(
             }
         )
     }
+
+    categoryToManage?.let { category ->
+        CategoryManagementDialog(
+            category = category,
+            isSubmitting = categoryUiState.mutatingCategoryId == category.id,
+            errorMessage = categoryUiState.errorMessage,
+            onDismiss = { categoryToManage = null },
+            onSave = { name, icon ->
+                onUpdateCategory(category, name, icon) {
+                    if (selectedCategoryId == category.id) {
+                        onCategorySelect(name, category.id)
+                    }
+                    categoryToManage = null
+                }
+            },
+            onDelete = {
+                onDeleteCategory(category) {
+                    if (selectedCategoryId == category.id) onCategorySelect("", null)
+                    categoryToManage = null
+                }
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun CategoryBackendItemCell(
     name: String,
     id: Long,
     icon: ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val bgModifier = if (isSelected) {
         Modifier.clip(RoundedCornerShape(18.dp)).background(BrandGreenDark)
@@ -438,7 +473,7 @@ internal fun CategoryBackendItemCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(68.dp)
-            .clickable { onClick() }
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(vertical = 4.dp)
     ) {
         Box(

@@ -154,6 +154,12 @@ fun AddTransactionScreen(
                     onError = {}
                 )
             },
+            onUpdateCategory = { categoryToUpdate, name, icon, onSuccess ->
+                categoryViewModel.updateCategory(categoryToUpdate, name, icon, onSuccess)
+            },
+            onDeleteCategory = { categoryToDelete, onSuccess ->
+                categoryViewModel.deleteCategory(categoryToDelete.id, onSuccess)
+            },
             counterpartName = counterpartName,
             onCounterpartNameChange = { counterpartName = it },
             debtDueDateMillis = debtDueDateMillis,

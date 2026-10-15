@@ -3,6 +3,7 @@ package com.wisekoin.data.remote
 import com.wisekoin.data.model.UpdateProfileRequest
 import com.wisekoin.data.model.UserResponseDto
 import com.wisekoin.data.model.ChangePasswordRequest
+import com.wisekoin.data.model.BaseCurrencyUpdateRequest
 import com.wisekoin.data.model.DeleteAccountRequest
 import com.wisekoin.data.model.OtpRequest
 import com.wisekoin.data.model.OtpRequestResponse
@@ -20,6 +21,9 @@ interface UserApiService {
 
     @PUT("api/users/me")
     suspend fun updateProfile(@Body request: UpdateProfileRequest): UserResponseDto
+
+    @PUT("api/users/me/base-currency")
+    suspend fun updateBaseCurrency(@Body request: BaseCurrencyUpdateRequest): UserResponseDto
 
     @POST("api/users/me/otp/request")
     suspend fun requestOtp(@Body request: OtpRequest): OtpRequestResponse

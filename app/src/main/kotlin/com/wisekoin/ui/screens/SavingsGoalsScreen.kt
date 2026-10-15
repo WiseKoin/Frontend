@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +35,7 @@ fun SavingsGoalsScreen(
     onGoalClick: (Long) -> Unit
 ) {
     val uiState by goalViewModel.uiState.collectAsStateWithLifecycle()
+    var goalPendingDeletion by remember { mutableStateOf<GoalResponseDto?>(null) }
 
     LaunchedEffect(Unit) {
         goalViewModel.loadGoals()
@@ -111,12 +113,98 @@ fun SavingsGoalsScreen(
 
         // Goals List
         items(goalViewModel.activeGoals, key = { it.id }) { goal ->
-            GoalCardItem(goal = goal, onClick = { onGoalClick(goal.id) })
+            SwipeableGoalItem(
+                goal = goal,
+                onClick = { onGoalClick(goal.id) },
+                onDelete = { goalPendingDeletion = goal }
+            )
         }
 
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    goalPendingDeletion?.let { goal ->
+        AlertDialog(
+            onDismissRequest = {
+                if (uiState.deletingGoalId == null) goalPendingDeletion = null
+            },
+            title = { Text(stringResource(com.wisekoin.R.string.delete_goal)) },
+            text = {
+                Text(
+                    stringResource(
+                        com.wisekoin.R.string.delete_goal_confirmation,
+                        goal.name,
+                        goal.currentAmount.formatSavingsVND()
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        goalViewModel.deleteGoal(goal.id) { goalPendingDeletion = null }
+                    },
+                    enabled = uiState.deletingGoalId == null,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
+                ) {
+                    if (uiState.deletingGoalId == goal.id) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(com.wisekoin.R.string.delete))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { goalPendingDeletion = null },
+                    enabled = uiState.deletingGoalId == null
+                ) {
+                    Text(stringResource(com.wisekoin.R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableGoalItem(
+    goal: GoalResponseDto,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val swipeState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value -> value != SwipeToDismissBoxValue.EndToStart }
+    )
+    SwipeToDismissBox(
+        state = swipeState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(PrimaryRed)
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = stringResource(com.wisekoin.R.string.delete_goal),
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    ) {
+        GoalCardItem(goal = goal, onClick = onClick)
     }
 }
 

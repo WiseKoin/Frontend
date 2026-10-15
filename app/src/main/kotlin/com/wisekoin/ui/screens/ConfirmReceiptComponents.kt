@@ -4,6 +4,8 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.wisekoin.R
+import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
@@ -187,6 +190,7 @@ internal fun DateAndCategoryRow(
 ) {
     val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
+    var categoryToManage by remember { mutableStateOf<CategoryResponse?>(null) }
     val context = LocalContext.current
 
     Row(
@@ -334,7 +338,8 @@ internal fun DateAndCategoryRow(
                                         name = cat.name,
                                         icon = getIconForCategory(cat.icon),
                                         isSelected = cat.name == currentCategory,
-                                        onClick = { onCategoryChange(cat.name) }
+                                        onClick = { onCategoryChange(cat.name) },
+                                        onLongClick = { categoryToManage = cat }
                                     )
                                     Spacer(Modifier.width(6.dp))
                                 }
@@ -360,6 +365,26 @@ internal fun DateAndCategoryRow(
                     onError = {}
                 )
                 showAddDialog = false
+            }
+        )
+    }
+    categoryToManage?.let { category ->
+        CategoryManagementDialog(
+            category = category,
+            isSubmitting = categoryUiState.mutatingCategoryId == category.id,
+            errorMessage = categoryUiState.errorMessage,
+            onDismiss = { categoryToManage = null },
+            onSave = { name, icon ->
+                categoryViewModel.updateCategory(category, name, icon) {
+                    if (currentCategory == category.name) onCategoryChange(name)
+                    categoryToManage = null
+                }
+            },
+            onDelete = {
+                categoryViewModel.deleteCategory(category.id) {
+                    if (currentCategory == category.name) onCategoryChange("")
+                    categoryToManage = null
+                }
             }
         )
     }
@@ -542,39 +567,22 @@ internal fun WalletSelector(
 }
 
 // --------------------------------------------------
-// Helper: icon mapping (same logic as AddTransactionScreen)
-// --------------------------------------------------
-private fun getIconForCategory(iconName: String?): ImageVector {
-    return when (iconName?.lowercase()) {
-        "restaurant", "dining" -> Icons.Outlined.Restaurant
-        "transport", "car" -> Icons.Outlined.DirectionsCar
-        "shopping", "bag" -> Icons.Outlined.ShoppingBag
-        "coffee", "cafe" -> Icons.Outlined.LocalCafe
-        "education", "school" -> Icons.Outlined.School
-        "health" -> Icons.Outlined.HealthAndSafety
-        "home" -> Icons.Outlined.Home
-        "work", "salary" -> Icons.Outlined.Work
-        "money", "income" -> Icons.Outlined.AttachMoney
-        "savings" -> Icons.Outlined.Savings
-        else -> Icons.Outlined.Category
-    }
-}
-
-// --------------------------------------------------
 // Compact category chip for the receipt screen
 // --------------------------------------------------
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun CategoryChip(
     name: String,
     icon: ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(if (isSelected) BrandGreenDark else CandyBg.copy(alpha = 0.5f))
-            .clickable { onClick() }
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

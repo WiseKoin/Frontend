@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisekoin.data.model.CategoryRequest
 import com.wisekoin.data.model.CategoryResponse
+import com.wisekoin.data.model.CategoryUpdateRequest
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.CategoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.Job
 data class CategoryUiState(
     val categories: List<CategoryResponse> = emptyList(),
     val isLoading: Boolean = false,
+    val mutatingCategoryId: Long? = null,
     val errorMessage: String? = null
 )
 
@@ -102,6 +104,72 @@ class CategoryViewModel(
                 val errorMsg = NetworkErrorMapper.message(e, "Unable to create the category. Please try again.")
                 _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
                 onError(errorMsg)
+            }
+        }
+    }
+
+    fun updateCategory(
+        category: CategoryResponse,
+        name: String,
+        icon: String,
+        onSuccess: () -> Unit
+    ) {
+        if (_uiState.value.mutatingCategoryId != null) return
+        _uiState.update { it.copy(mutatingCategoryId = category.id, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                val updated = repository.updateCategory(
+                    category.id,
+                    CategoryUpdateRequest(name = name.trim(), icon = icon)
+                )
+                _uiState.update { state ->
+                    state.copy(
+                        categories = state.categories.map { if (it.id == updated.id) updated else it },
+                        mutatingCategoryId = null
+                    )
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        mutatingCategoryId = null,
+                        errorMessage = NetworkErrorMapper.message(
+                            error,
+                            "We couldn't update this category. Please try again."
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun deleteCategory(categoryId: Long, onSuccess: () -> Unit) {
+        if (_uiState.value.mutatingCategoryId != null) return
+        _uiState.update { it.copy(mutatingCategoryId = categoryId, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                repository.deleteCategory(categoryId)
+                _uiState.update { state ->
+                    state.copy(
+                        categories = state.categories.filterNot { it.id == categoryId },
+                        mutatingCategoryId = null
+                    )
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        mutatingCategoryId = null,
+                        errorMessage = NetworkErrorMapper.message(
+                            error,
+                            "This category may still be used by a transaction or recurring payment."
+                        )
+                    )
+                }
             }
         }
     }

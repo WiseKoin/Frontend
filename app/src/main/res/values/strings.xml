@@ -103,4 +103,22 @@
     <string name="delete_confirmation_error">Type DELETE exactly to continue.</string>
     <string name="debt_type_lend">Lend</string>
     <string name="debt_type_borrow">Borrow</string>
+    <string name="delete_goal">Delete goal</string>
+    <string name="delete_goal_confirmation">Delete %1$s? %2$s already saved will be returned to the original wallet or wallets.</string>
+    <string name="manage_category">Manage category</string>
+    <string name="category_name">Category name</string>
+    <string name="choose_icon">Choose an icon</string>
+    <string name="delete_category_confirmation">Delete %1$s? Categories used by transactions or recurring payments cannot be deleted.</string>
+    <string name="confirm_delete">Confirm delete</string>
+    <string name="base_currency">Base currency</string>
+    <string name="base_currency_value">Base currency · %1$s</string>
+    <string name="base_currency_description">Choose the currency used for your account’s primary display and future reporting.</string>
+    <string name="forgot_password">Forgot password</string>
+    <string name="recovery_email_instruction">Enter your account email. If it matches an account, we’ll send a six-digit verification code.</string>
+    <string name="email_address">Email address</string>
+    <string name="invalid_email">Enter a valid email address.</string>
+    <string name="recovery_code_instruction">Enter the six-digit code sent for %1$s. Codes expire and incorrect attempts are limited.</string>
+    <string name="invalid_verification_code">Enter all six digits.</string>
+    <string name="create_new_password">Create new password</string>
+    <string name="reset_password">Reset password</string>
 </resources>

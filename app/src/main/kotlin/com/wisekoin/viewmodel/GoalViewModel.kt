@@ -23,6 +23,7 @@ data class GoalUiState(
     val isLoading: Boolean = false,
     val isCreating: Boolean = false,
     val isFunding: Boolean = false,
+    val deletingGoalId: Long? = null,
     val errorMessage: String? = null,
     val fundingError: GoalFundingError? = null
 )
@@ -46,6 +47,7 @@ class GoalViewModel(
     val uiState: StateFlow<GoalUiState> = _uiState.asStateFlow()
     private val goalCreationGate = SubmissionGate()
     private val goalFundingGate = SubmissionGate()
+    private val goalDeletionGate = SubmissionGate()
 
     val totalSaved: BigDecimal
         get() = _uiState.value.goals.sumOf { it.currentAmount }
@@ -147,6 +149,37 @@ class GoalViewModel(
                 }
             } finally {
                 goalFundingGate.finish()
+            }
+        }
+    }
+
+    fun deleteGoal(goalId: Long, onSuccess: () -> Unit = {}) {
+        if (!goalDeletionGate.tryStart()) return
+        _uiState.update { it.copy(deletingGoalId = goalId, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                repository.deleteGoal(goalId)
+                _uiState.update { state ->
+                    state.copy(
+                        goals = state.goals.filterNot { it.id == goalId },
+                        deletingGoalId = null
+                    )
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        deletingGoalId = null,
+                        errorMessage = NetworkErrorMapper.message(
+                            error,
+                            "We couldn't delete this goal. Please try again."
+                        )
+                    )
+                }
+            } finally {
+                goalDeletionGate.finish()
             }
         }
     }

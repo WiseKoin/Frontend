@@ -21,3 +21,10 @@ data class CategoryRequest(
     @SerializedName("icon")
     val icon: String? = null
 )
+
+data class CategoryUpdateRequest(
+    @SerializedName("name")
+    val name: String? = null,
+    @SerializedName("icon")
+    val icon: String? = null
+)

@@ -13,5 +13,8 @@ data class UserResponseDto(
     val email: String,
 
     @SerializedName("phone")
-    val phone: String? = null
+    val phone: String? = null,
+
+    @SerializedName("baseCurrency")
+    val baseCurrency: String = "VND"
 )

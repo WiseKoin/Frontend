@@ -4,6 +4,7 @@ import com.wisekoin.data.model.GoalFundRequestDto
 import com.wisekoin.data.model.GoalRequestDto
 import com.wisekoin.data.model.GoalResponseDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -20,4 +21,7 @@ interface GoalApiService {
         @Path("id") goalId: Long,
         @Body request: GoalFundRequestDto
     ): GoalResponseDto
+
+    @DELETE("api/goals/{id}")
+    suspend fun deleteGoal(@Path("id") goalId: Long)
 }

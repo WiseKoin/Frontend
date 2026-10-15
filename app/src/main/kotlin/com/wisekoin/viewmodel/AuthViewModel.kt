@@ -30,7 +30,8 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val registerErrorMessage: String? = null,
     val loginErrorMessage: String? = null,
-    val updateErrorMessage: String? = null
+    val updateErrorMessage: String? = null,
+    val isUpdatingCurrency: Boolean = false
 )
 
 enum class SessionStatus {
@@ -283,6 +284,35 @@ class AuthViewModel(
                 val errorMsg = NetworkErrorMapper.message(e, "Unable to update your profile. Please try again.")
                 _uiState.update { it.copy(isLoading = false, updateErrorMessage = errorMsg) }
                 onError(errorMsg)
+            }
+        }
+    }
+
+    fun updateBaseCurrency(
+        currency: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (_uiState.value.isUpdatingCurrency) return
+        _uiState.update { it.copy(isUpdatingCurrency = true, updateErrorMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = repository.updateBaseCurrency(currency)
+                _uiState.update {
+                    it.copy(currentUser = response, isUpdatingCurrency = false)
+                }
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                val message = NetworkErrorMapper.message(
+                    error,
+                    "We couldn't change the base currency. Please try again."
+                )
+                _uiState.update {
+                    it.copy(isUpdatingCurrency = false, updateErrorMessage = message)
+                }
+                onError(message)
             }
         }
     }

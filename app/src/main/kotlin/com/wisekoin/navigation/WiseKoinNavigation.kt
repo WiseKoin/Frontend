@@ -43,10 +43,14 @@ import com.wisekoin.R
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
 import com.wisekoin.viewmodel.TransactionEntryViewModel
+import com.wisekoin.viewmodel.PasswordRecoveryViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
+    object PasswordRecoveryRequest : Screen("password_recovery_request")
+    object PasswordRecoveryOtp : Screen("password_recovery_otp")
+    object PasswordRecoveryReset : Screen("password_recovery_reset")
     object Profile : Screen("profile")
     object AccountSecurity : Screen("account_security")
     object ChangePassword : Screen("change_password")
@@ -154,6 +158,7 @@ fun WiseKoinNavGraph(
     val goalViewModel: GoalViewModel = viewModel(factory = viewModelFactory)
     val transactionEntryViewModel: TransactionEntryViewModel = viewModel(factory = viewModelFactory)
     val accountSecurityViewModel: AccountSecurityViewModel = viewModel(factory = viewModelFactory)
+    val passwordRecoveryViewModel: PasswordRecoveryViewModel = viewModel(factory = viewModelFactory)
 
     NavHost(
         navController = navController,
@@ -171,7 +176,9 @@ fun WiseKoinNavGraph(
                 onNavigateToSignUp = {
                     navController.navigate(Screen.Register.route)
                 },
-                onForgotPasswordClick = { }
+                onForgotPasswordClick = {
+                    navController.navigate(Screen.PasswordRecoveryRequest.route)
+                }
             )
         }
 
@@ -186,6 +193,36 @@ fun WiseKoinNavGraph(
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.PasswordRecoveryRequest.route) {
+            PasswordRecoveryRequestScreen(
+                viewModel = passwordRecoveryViewModel,
+                onBack = { navController.popBackStack() },
+                onCodeSent = { navController.navigate(Screen.PasswordRecoveryOtp.route) }
+            )
+        }
+
+        composable(Screen.PasswordRecoveryOtp.route) {
+            PasswordRecoveryOtpScreen(
+                viewModel = passwordRecoveryViewModel,
+                onBack = { navController.popBackStack() },
+                onVerified = { navController.navigate(Screen.PasswordRecoveryReset.route) }
+            )
+        }
+
+        composable(Screen.PasswordRecoveryReset.route) {
+            PasswordRecoveryNewPasswordScreen(
+                viewModel = passwordRecoveryViewModel,
+                onBack = { navController.popBackStack() },
+                onPasswordReset = { email ->
+                    authViewModel.updateEmail(email)
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.PasswordRecoveryRequest.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

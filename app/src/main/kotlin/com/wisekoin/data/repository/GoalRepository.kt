@@ -9,6 +9,7 @@ interface GoalRepository {
     suspend fun getGoals(): List<GoalResponseDto>
     suspend fun createGoal(request: GoalRequestDto): GoalResponseDto
     suspend fun fundGoal(goalId: Long, request: GoalFundRequestDto): GoalResponseDto
+    suspend fun deleteGoal(goalId: Long)
 }
 
 class NetworkGoalRepository(
@@ -22,4 +23,6 @@ class NetworkGoalRepository(
         goalId: Long,
         request: GoalFundRequestDto
     ): GoalResponseDto = api.fundGoal(goalId, request)
+
+    override suspend fun deleteGoal(goalId: Long) = api.deleteGoal(goalId)
 }

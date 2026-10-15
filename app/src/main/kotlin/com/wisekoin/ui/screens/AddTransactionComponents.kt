@@ -109,7 +109,6 @@ internal fun AmountHeader(
             onTypeSelect = onTypeSelect,
             modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
         )
-        CircularIconButton(Icons.Default.MoreVert, "More", onClick = {})
     }
 }
 

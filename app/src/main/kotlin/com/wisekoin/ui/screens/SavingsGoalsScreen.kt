@@ -179,7 +179,12 @@ private fun SwipeableGoalItem(
     onDelete: () -> Unit
 ) {
     val swipeState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value -> value != SwipeToDismissBoxValue.EndToStart }
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.StartToEnd) {
+                onDelete()
+            }
+            value == SwipeToDismissBoxValue.Settled
+        }
     )
     SwipeToDismissBox(
         state = swipeState,

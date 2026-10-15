@@ -63,17 +63,20 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
+    initialType: String = "Expense",
     onClose: () -> Unit,
     onVoiceAdd: () -> Unit,
     onScanReceipt: () -> Unit,
     onConfirmSuccess: () -> Unit,
-    onDebtCreated: () -> Unit,
+    onDebtCreated: (String) -> Unit,
     onProfileClick: () -> Unit,
     authViewModel: AuthViewModel,
     categoryViewModel: CategoryViewModel,
     transactionEntryViewModel: TransactionEntryViewModel
 ) {
-    var selectedType by remember { mutableStateOf("Expense") }
+    var selectedType by remember(initialType) {
+        mutableStateOf(initialType.takeIf { it in listOf("Expense", "Income", "Lend", "Borrow") } ?: "Expense")
+    }
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
@@ -300,7 +303,7 @@ fun AddTransactionScreen(
                                 dueDate = dueDate,
                                 note = if (note.isBlank()) null else note
                             ),
-                            onSuccess = onDebtCreated,
+                            onSuccess = { onDebtCreated(debtType) },
                             onFailure = { message ->
                                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                             }

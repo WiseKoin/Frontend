@@ -58,8 +58,14 @@ sealed class Screen(val route: String) {
     object Overview : Screen("overview")
     object Expenses : Screen("expenses")
     object Savings : Screen("savings")
-    object Debt : Screen("debt")
-    object AddTransaction : Screen("add_transaction")
+    object Debt : Screen("debt?type={type}") {
+        const val destination = "debt"
+        fun createRoute(type: String): String = "$destination?type=$type"
+    }
+    object AddTransaction : Screen("add_transaction?type={type}") {
+        const val destination = "add_transaction"
+        fun createRoute(type: String): String = "$destination?type=$type"
+    }
     object ScanReceipt : Screen("scan_receipt")
     object ConfirmReceipt : Screen("confirm_receipt") // Route mới
     object VoiceRecording : Screen("voice_recording")
@@ -117,7 +123,7 @@ fun WiseKoinApp(container: AppContainer) {
         bottomBar = {
             if (showBottomBar) {
                 WiseKoinBottomBar(
-                    currentRoute = currentRoute,
+                    currentRoute = currentRoute.substringBefore('?'),
                     onNavigate = { route ->
                         navController.navigate(route) {
                             popUpTo(Screen.Overview.route) { saveState = true }
@@ -304,7 +310,7 @@ fun WiseKoinNavGraph(
                 walletViewModel = walletViewModel,
                 onNavigateToAddTransaction = {
                     val destination = if (authUiState.isLoggedIn) {
-                        Screen.AddTransaction.route
+                        Screen.AddTransaction.destination
                     } else {
                         Screen.Login.route
                     }
@@ -348,7 +354,16 @@ fun WiseKoinNavGraph(
             )
         }
 
-        composable(Screen.Debt.route) {
+        composable(
+            route = Screen.Debt.route,
+            arguments = listOf(
+                navArgument("type") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val debtViewModel: DebtViewModel = viewModel(factory = viewModelFactory)
             val walletViewModel: WalletViewModel = viewModel(factory = viewModelFactory)
             DebtManagementScreen(
@@ -356,17 +371,27 @@ fun WiseKoinNavGraph(
                 categoryViewModel = categoryViewModel,
                 walletViewModel = walletViewModel,
                 isLoggedIn = authUiState.isLoggedIn,
-                onAddDebt = { navController.navigate(Screen.AddTransaction.route){
-                        popUpTo(Screen.Overview.route) { saveState = true }
+                initialType = backStackEntry.arguments?.getString("type"),
+                onAddDebt = { type ->
+                    navController.navigate(Screen.AddTransaction.createRoute(type)) {
                         launchSingleTop = true
-                        restoreState = true
                     }
                 }
             )
         }
 
-        composable(Screen.AddTransaction.route) {
+        composable(
+            route = Screen.AddTransaction.route,
+            arguments = listOf(
+                navArgument("type") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             AddTransactionScreen(
+                initialType = backStackEntry.arguments?.getString("type") ?: "Expense",
                 onClose = { navController.popBackStack() },
                 onVoiceAdd = { navController.navigate(Screen.VoiceRecording.route) },
                 onScanReceipt = { navController.navigate(Screen.ScanReceipt.route) },
@@ -377,11 +402,10 @@ fun WiseKoinNavGraph(
                         launchSingleTop = true
                     }
                 },
-                onDebtCreated = {
-                    navController.navigate(Screen.Debt.route) {
-                        popUpTo(Screen.Overview.route) { saveState = true }
+                onDebtCreated = { debtType ->
+                    navController.navigate(Screen.Debt.createRoute(debtType)) {
+                        popUpTo(Screen.Overview.route)
                         launchSingleTop = true
-                        restoreState = true
                     }
                 },
                 onProfileClick = {

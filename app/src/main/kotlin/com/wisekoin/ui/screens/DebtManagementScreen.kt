@@ -53,12 +53,15 @@ fun DebtManagementScreen(
     categoryViewModel: CategoryViewModel,
     walletViewModel: WalletViewModel,
     isLoggedIn: Boolean = false,
-    onAddDebt: () -> Unit
+    initialType: String? = null,
+    onAddDebt: (String) -> Unit
 ) {
     val state by debtViewModel.uiState.collectAsStateWithLifecycle()
     val categoryState by categoryViewModel.uiState.collectAsStateWithLifecycle()
     val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
-    var isLentTab by remember { mutableStateOf(true) }
+    var isLentTab by remember(initialType) {
+        mutableStateOf(!initialType.equals("BORROW", ignoreCase = true))
+    }
     var stateToRepay by remember { mutableStateOf<Pair<DebtResponse, Boolean>?>(null) }
     var debtToEdit by remember { mutableStateOf<DebtResponse?>(null) }
     var debtToDelete by remember { mutableStateOf<DebtResponse?>(null) }
@@ -157,7 +160,7 @@ fun DebtManagementScreen(
                     }
 
                     FloatingActionButton(
-                        onClick = onAddDebt,
+                        onClick = { onAddDebt(if (isLentTab) "Lend" else "Borrow") },
                         containerColor = PrimaryRed,
                         contentColor = Color.White,
                         modifier = Modifier.size(44.dp)

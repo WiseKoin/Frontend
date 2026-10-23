@@ -44,6 +44,7 @@ import com.wisekoin.ui.theme.NunitoSansFamily
 import com.wisekoin.ui.theme.ReticleRed
 import com.wisekoin.ui.theme.neomorphicCircle
 import com.wisekoin.util.uriToMultipartPart
+import com.wisekoin.util.deleteTemporaryReceipt
 import com.wisekoin.viewmodel.ReceiptViewModel
 import java.io.File
 import java.text.SimpleDateFormat
@@ -93,7 +94,9 @@ fun ScanReceiptScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             val part = uriToMultipartPart(context, uri, "file")
-            viewModel.uploadReceipt(uri, part)
+            viewModel.uploadReceipt(uri, part) {
+                deleteTemporaryReceipt(context, uri)
+            }
             onNavigateToConfirm()
         }
     }
@@ -201,9 +204,20 @@ fun ScanReceiptScreen(
                 },
                 onCaptureClick = {
                     capturePhoto(context, imageCapture) { savedUri ->
-                        val part = uriToMultipartPart(context, savedUri, "file")
-                        viewModel.uploadReceipt(savedUri, part)
-                        onNavigateToConfirm()
+                        try {
+                            val part = uriToMultipartPart(context, savedUri, "file")
+                            viewModel.uploadReceipt(savedUri, part) {
+                                deleteTemporaryReceipt(context, savedUri)
+                            }
+                            onNavigateToConfirm()
+                        } catch (error: IllegalArgumentException) {
+                            deleteTemporaryReceipt(context, savedUri)
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Unable to read the captured receipt.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 },
                 isFlashOn = isFlashOn,
@@ -397,6 +411,7 @@ private fun capturePhoto(
             }
 
             override fun onError(exc: ImageCaptureException) {
+                photoFile.delete()
                 Toast.makeText(context, AppR.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
             }
         }

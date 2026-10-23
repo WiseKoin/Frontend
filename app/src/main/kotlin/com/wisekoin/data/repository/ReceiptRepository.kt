@@ -7,6 +7,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.ZoneId
 import java.util.Locale
+import java.util.UUID
 
 interface ReceiptRepository {
     suspend fun extractReceipt(file: MultipartBody.Part): ReceiptResponseDto
@@ -17,10 +18,10 @@ class NetworkReceiptRepository(
     private val api: ReceiptApiService
 ) : ReceiptRepository {
     override suspend fun extractReceipt(file: MultipartBody.Part): ReceiptResponseDto =
-        api.extractReceipt(file, localeBody(), timeZoneBody())
+        api.extractReceipt(file, localeBody(), timeZoneBody(), UUID.randomUUID().toString())
 
     override suspend fun extractVoice(file: MultipartBody.Part): VoiceResponseDto =
-        api.extractVoice(file, localeBody(), timeZoneBody())
+        api.extractVoice(file, localeBody(), timeZoneBody(), UUID.randomUUID().toString())
 
     private fun localeBody() = Locale.getDefault().toLanguageTag().toRequestBody()
 

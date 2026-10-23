@@ -69,7 +69,11 @@ class ReceiptViewModel(
         _uiState.update { it.copy(imageUri = uri) }
     }
 
-    fun uploadReceipt(uri: Uri, filePart: MultipartBody.Part) {
+    fun uploadReceipt(
+        uri: Uri,
+        filePart: MultipartBody.Part,
+        onMediaConsumed: () -> Unit = {}
+    ) {
         resetDateTime()
         _uiState.update {
             it.copy(
@@ -151,6 +155,8 @@ class ReceiptViewModel(
                         )
                     )
                 }
+            } finally {
+                onMediaConsumed()
             }
         }
     }

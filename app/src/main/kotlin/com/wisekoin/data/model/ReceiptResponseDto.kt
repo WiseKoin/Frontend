@@ -107,7 +107,10 @@ data class ReceiptResponseDto (
     val ruleApplied: Boolean = false,
 
     @SerializedName("confidence")
-    val confidence: AiConfidenceDto? = null
+    val confidence: AiConfidenceDto? = null,
+
+    @SerializedName("request_id")
+    val requestId: String? = null
 )
 
 data class VoiceTransactionDto(
@@ -225,5 +228,8 @@ data class VoiceResponseDto(
     val sourceWalletId: Long? = null,
 
     @SerializedName("destination_wallet_id")
-    val destinationWalletId: Long? = null
+    val destinationWalletId: Long? = null,
+
+    @SerializedName("request_id")
+    val requestId: String? = null
 )

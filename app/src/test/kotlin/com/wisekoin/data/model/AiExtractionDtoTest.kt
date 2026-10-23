@@ -185,6 +185,7 @@ class AiExtractionDtoTest {
               "category": "Dining",
               "amount": 45000,
               "extraction_id": "550e8400-e29b-41d4-a716-446655440000",
+              "request_id": "550e8400-e29b-41d4-a716-446655440099",
               "prompt_version": "receipt-v2",
               "model_version": "gemini-test",
               "provider": "GEMINI",
@@ -202,6 +203,7 @@ class AiExtractionDtoTest {
         )
 
         assertEquals("550e8400-e29b-41d4-a716-446655440000", response.extractionId)
+        assertEquals("550e8400-e29b-41d4-a716-446655440099", response.requestId)
         assertEquals("receipt-v2", response.promptVersion)
         assertEquals(BigDecimal("0.95"), response.confidence?.score)
         assertTrue(response.ruleApplied)

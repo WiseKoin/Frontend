@@ -124,6 +124,10 @@ class VoiceViewModel(
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
+    companion object {
+        const val MAX_RECORDING_SECONDS = 55
+    }
+
     private val _uiState = MutableStateFlow(VoiceUiState())
     val uiState: StateFlow<VoiceUiState> = _uiState.asStateFlow()
 
@@ -134,6 +138,7 @@ class VoiceViewModel(
 
     fun startRecording(context: Context) {
         audioRecorder?.release()
+        deleteCurrentAudioFile()
         audioRecorder = AndroidAudioRecorder(context.applicationContext)
 
         val tempFile = File(context.cacheDir, "voice_record_${System.currentTimeMillis()}.m4a")
@@ -151,6 +156,7 @@ class VoiceViewModel(
             }
             startTimer()
         } else {
+            deleteCurrentAudioFile()
             _uiState.update {
                 it.copy(
                     isRecording = false,
@@ -172,6 +178,7 @@ class VoiceViewModel(
             val file = currentAudioFile
 
             if (!stopSuccess || file == null || !file.exists() || file.length() < 1000L) {
+                deleteCurrentAudioFile()
                 _uiState.update {
                     it.copy(
                         isRecording = false,
@@ -240,6 +247,8 @@ class VoiceViewModel(
                         )
                     )
                 }
+            } finally {
+                deleteCurrentAudioFile()
             }
         }
     }
@@ -370,9 +379,12 @@ class VoiceViewModel(
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
-            while (true) {
+            while (_uiState.value.recordingSeconds < MAX_RECORDING_SECONDS) {
                 delay(1000)
                 _uiState.update { it.copy(recordingSeconds = it.recordingSeconds + 1) }
+            }
+            if (_uiState.value.isRecording) {
+                stopAndProcess()
             }
         }
     }
@@ -418,15 +430,21 @@ class VoiceViewModel(
     fun resetState() {
         timerJob?.cancel()
         audioRecorder?.release()
+        deleteCurrentAudioFile()
+        _uiState.value = VoiceUiState()
+    }
+
+    private fun deleteCurrentAudioFile() {
         try {
             currentAudioFile?.delete()
         } catch (_: Exception) {}
         currentAudioFile = null
-        _uiState.value = VoiceUiState()
     }
 
     override fun onCleared() {
         super.onCleared()
+        timerJob?.cancel()
         audioRecorder?.release()
+        deleteCurrentAudioFile()
     }
 }

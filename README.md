@@ -2,14 +2,6 @@
 
 Jetpack Compose mobile application for the WiseKoin financial management platform.
 
-## Group Members
-
-| Student ID | Full Name             | Role                                                                                          |
-|------------|-----------------------|-----------------------------------------------------------------------------------------------|
-| 24125076   | Tran Thien Phuc       | —                                                                                             |
-| 24125016   | Hoang Duc Hung Phat   | Android: UI screens, navigation, ViewModels; CameraX receipt scanning (33.33%)                |
-| 24125053   | Nguyen Van Le Bao     | Android: UI screens, navigation, ViewModels; Retrofit API integration; voice recording; local token management (33.33%) |
-
 ## Project Title
 
 **WiseKoin** — Financial Tracking and Planning Mobile Application
@@ -85,17 +77,6 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Or open in Android Studio and click **Run**.
-
-## Test Account
-
-Create a test account via the backend register endpoint or directly in the app:
-
-```
-Email:    test@wisekoin.com
-Password: testpass123
-```
-
-> **Note:** You must register through the app or API first — there is no pre-seeded test account.
 
 ## Screenshots
 

@@ -148,8 +148,10 @@ fun ConfirmReceiptScreen(
 
         DateAndCategoryRow(
             dateText = uiState.date,
-            currentCategory = uiState.category,
-            onCategoryChange = { viewModel.updateCategory(it) },
+            currentCategoryId = uiState.categoryId,
+            onCategoryChange = { categoryId, category ->
+                viewModel.updateCategory(categoryId, category)
+            },
             categoryViewModel = categoryViewModel,
             isLoggedIn = isLoggedIn
         )

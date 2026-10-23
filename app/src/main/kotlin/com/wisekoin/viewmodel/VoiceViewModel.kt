@@ -90,8 +90,10 @@ data class VoiceUiState(
     val isProcessing: Boolean = false,
     val voiceResult: VoiceResponseDto? = null,
     val editableAmount: String = "",
-    val editableType: String = "EXPENSE",
-    val editableCategory: String = "Dining",
+    val currency: String = "VND",
+    val editableType: String = "",
+    val editableCategoryId: Long? = null,
+    val editableCategory: String = "",
     val editableNote: String = "",
     val transcript: String = "",
     val errorMessage: String? = null,
@@ -177,17 +179,22 @@ class VoiceViewModel(
                 val response = receiptRepository.extractVoice(part)
 
                 val formattedAmount = try {
-                    NumberFormat.getNumberInstance(Locale.US).format(response.amount.toLong())
+                    NumberFormat.getNumberInstance(Locale.US).format(response.amount)
                 } catch (_: Exception) {
                     response.amount.toPlainString()
                 }
+                val extractedType = response.type.uppercase()
+                    .takeIf { it == "EXPENSE" || it == "INCOME" }
+                    .orEmpty()
 
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
                         voiceResult = response,
                         editableAmount = formattedAmount,
-                        editableType = if (response.type.equals("INCOME", ignoreCase = true)) "INCOME" else "EXPENSE",
+                        currency = response.currency,
+                        editableType = extractedType,
+                        editableCategoryId = response.categoryId,
                         editableCategory = response.category.takeUnless { it.equals("Unknown", ignoreCase = true) }.orEmpty(),
                         editableNote = response.note ?: "",
                         transcript = response.transcript ?: ""
@@ -214,11 +221,17 @@ class VoiceViewModel(
     }
 
     fun updateType(type: String) {
-        _uiState.update { it.copy(editableType = type) }
+        _uiState.update {
+            it.copy(
+                editableType = type,
+                editableCategoryId = null,
+                editableCategory = ""
+            )
+        }
     }
 
-    fun updateCategory(category: String) {
-        _uiState.update { it.copy(editableCategory = category) }
+    fun updateCategory(categoryId: Long, category: String) {
+        _uiState.update { it.copy(editableCategoryId = categoryId, editableCategory = category) }
     }
 
     fun updateNote(note: String) {
@@ -243,7 +256,12 @@ class VoiceViewModel(
             return
         }
 
-        val parsedAmount = currentState.editableAmount.replace(",", "").replace(".", "").trim().toBigDecimalOrNull()
+        if (currentState.editableType != "EXPENSE" && currentState.editableType != "INCOME") {
+            onFailure("Please choose whether this transaction is an expense or income.")
+            return
+        }
+
+        val parsedAmount = currentState.editableAmount.replace(",", "").trim().toBigDecimalOrNull()
         if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
             onFailure("Please enter a valid amount.")
             return
@@ -251,7 +269,8 @@ class VoiceViewModel(
 
         val categories = categoryViewModel.uiState.value.categories
         val selectedCategory = categories.firstOrNull {
-            it.name.equals(currentState.editableCategory, ignoreCase = true)
+            it.id == currentState.editableCategoryId &&
+                it.type.equals(currentState.editableType, ignoreCase = true)
         }
 
         if (selectedCategory == null) {

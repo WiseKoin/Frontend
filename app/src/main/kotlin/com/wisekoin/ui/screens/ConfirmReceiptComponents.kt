@@ -183,8 +183,8 @@ internal fun StoreNameCard(
 @Composable
 internal fun DateAndCategoryRow(
     dateText: String,
-    currentCategory: String,
-    onCategoryChange: (String) -> Unit,
+    currentCategoryId: Long?,
+    onCategoryChange: (Long?, String) -> Unit,
     categoryViewModel: CategoryViewModel,
     isLoggedIn: Boolean
 ) {
@@ -337,8 +337,8 @@ internal fun DateAndCategoryRow(
                                     CategoryChip(
                                         name = cat.name,
                                         icon = getIconForCategory(cat.icon),
-                                        isSelected = cat.name == currentCategory,
-                                        onClick = { onCategoryChange(cat.name) },
+                                        isSelected = cat.id == currentCategoryId,
+                                        onClick = { onCategoryChange(cat.id, cat.name) },
                                         onLongClick = { categoryToManage = cat }
                                     )
                                     Spacer(Modifier.width(6.dp))
@@ -376,13 +376,15 @@ internal fun DateAndCategoryRow(
             onDismiss = { categoryToManage = null },
             onSave = { name, icon ->
                 categoryViewModel.updateCategory(category, name, icon) {
-                    if (currentCategory == category.name) onCategoryChange(name)
+                    if (currentCategoryId == category.id) {
+                        onCategoryChange(category.id, name)
+                    }
                     categoryToManage = null
                 }
             },
             onDelete = {
                 categoryViewModel.deleteCategory(category.id) {
-                    if (currentCategory == category.name) onCategoryChange("")
+                    if (currentCategoryId == category.id) onCategoryChange(null, "")
                     categoryToManage = null
                 }
             }

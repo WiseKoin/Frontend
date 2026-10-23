@@ -95,7 +95,9 @@ fun VoiceRecordingScreen(
     }
 
     LaunchedEffect(uiState.editableType, authUiState.isLoggedIn) {
-        if (authUiState.isLoggedIn) {
+        if (authUiState.isLoggedIn &&
+            (uiState.editableType == "EXPENSE" || uiState.editableType == "INCOME")
+        ) {
             categoryViewModel.loadCategories(uiState.editableType, true)
         }
     }
@@ -220,7 +222,7 @@ fun VoiceRecordingScreen(
                         OutlinedTextField(
                             value = uiState.editableAmount,
                             onValueChange = { voiceViewModel.updateAmount(it) },
-                            label = { Text("Amount (VND)") },
+                            label = { Text("Amount (${uiState.currency})") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -241,14 +243,20 @@ fun VoiceRecordingScreen(
                         // Category Selection
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Category", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextLight)
-                            val categories = categoryUiState.categories
+                            val categories = if (
+                                uiState.editableType == "EXPENSE" || uiState.editableType == "INCOME"
+                            ) {
+                                categoryUiState.categories
+                            } else {
+                                emptyList()
+                            }
                             if (categories.isNotEmpty()) {
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(categories) { cat ->
-                                        val isSelected = cat.name.equals(uiState.editableCategory, ignoreCase = true)
+                                        val isSelected = cat.id == uiState.editableCategoryId
                                         FilterChip(
                                             selected = isSelected,
-                                            onClick = { voiceViewModel.updateCategory(cat.name) },
+                                            onClick = { voiceViewModel.updateCategory(cat.id, cat.name) },
                                             label = { Text(cat.name, fontSize = 12.sp) },
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = PeachDark,
@@ -261,7 +269,7 @@ fun VoiceRecordingScreen(
                                     }
                                 }
                             } else {
-                                Text("Default Category: ${uiState.editableCategory}", fontSize = 13.sp, color = TextDark)
+                                Text("Select a transaction type to load categories.", fontSize = 13.sp, color = TextDark)
                             }
                         }
 

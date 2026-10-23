@@ -24,7 +24,8 @@ data class ReceiptUiState(
     val imageUri: Uri? = null,
     val storeName: String = "",
     val amount: String = "",
-    val category: String = "Dining",
+    val categoryId: Long? = null,
+    val category: String = "",
     val date: String = "",
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
@@ -52,6 +53,10 @@ class ReceiptViewModel(
         _uiState.update {
             it.copy(
                 imageUri = uri,
+                storeName = "",
+                amount = "",
+                categoryId = null,
+                category = "",
                 isLoading = true,
                 errorMessage = null
             )
@@ -62,14 +67,15 @@ class ReceiptViewModel(
                 val response = receiptRepository.extractReceipt(filePart)
 
                 val formattedAmount = try {
-                    NumberFormat.getNumberInstance(Locale.US).format(response.amount.toLong())
-                } catch (e: Exception) {
-                    response.amount.toLong().toString()
+                    NumberFormat.getNumberInstance(Locale.US).format(response.amount)
+                } catch (_: Exception) {
+                    response.amount.toPlainString()
                 }
 
                 _uiState.update {
                     it.copy(
                         storeName = response.storeName,
+                        categoryId = response.categoryId,
                         category = response.category,
                         amount = formattedAmount,
                         isLoading = false
@@ -81,6 +87,7 @@ class ReceiptViewModel(
                 _uiState.update {
                     it.copy(
                         storeName = "Not available",
+                        categoryId = null,
                         category = "Not available",
                         amount = "Not available",
                         isLoading = false,
@@ -102,8 +109,8 @@ class ReceiptViewModel(
         _uiState.update { it.copy(amount = amount) }
     }
 
-    fun updateCategory(category: String) {
-        _uiState.update { it.copy(category = category) }
+    fun updateCategory(categoryId: Long?, category: String) {
+        _uiState.update { it.copy(categoryId = categoryId, category = category) }
     }
 
     fun updateDate(date: String) {
@@ -140,9 +147,9 @@ class ReceiptViewModel(
         }
 
         val selectedCategory = categoryViewModel.uiState.value.categories
-            .firstOrNull { it.name == currentState.category }
+            .firstOrNull { it.id == currentState.categoryId && it.type == "EXPENSE" }
         if (selectedCategory == null) {
-            onFailure("Category not found: ${currentState.category}")
+            onFailure("Please select an expense category.")
             return
         }
 

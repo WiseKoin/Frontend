@@ -3,6 +3,9 @@ package com.wisekoin.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wisekoin.data.model.AiCategoryCandidateDto
+import com.wisekoin.data.model.AiDuplicateCandidateDto
+import com.wisekoin.data.model.AiFieldAmbiguityDto
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.ReceiptRepository
@@ -17,6 +20,9 @@ import okhttp3.MultipartBody
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
 
@@ -26,7 +32,18 @@ data class ReceiptUiState(
     val amount: String = "",
     val categoryId: Long? = null,
     val category: String = "",
+    val currency: String = "VND",
     val date: String = "",
+    val transactionDate: String? = null,
+    val subtotal: BigDecimal? = null,
+    val tax: BigDecimal? = null,
+    val discount: BigDecimal? = null,
+    val tip: BigDecimal? = null,
+    val paymentMethod: String = "UNKNOWN",
+    val categoryCandidates: List<AiCategoryCandidateDto> = emptyList(),
+    val requiresClarification: Boolean = false,
+    val ambiguities: List<AiFieldAmbiguityDto> = emptyList(),
+    val duplicateCandidates: List<AiDuplicateCandidateDto> = emptyList(),
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -50,6 +67,7 @@ class ReceiptViewModel(
     }
 
     fun uploadReceipt(uri: Uri, filePart: MultipartBody.Part) {
+        resetDateTime()
         _uiState.update {
             it.copy(
                 imageUri = uri,
@@ -57,6 +75,16 @@ class ReceiptViewModel(
                 amount = "",
                 categoryId = null,
                 category = "",
+                transactionDate = null,
+                subtotal = null,
+                tax = null,
+                discount = null,
+                tip = null,
+                paymentMethod = "UNKNOWN",
+                categoryCandidates = emptyList(),
+                requiresClarification = false,
+                ambiguities = emptyList(),
+                duplicateCandidates = emptyList(),
                 isLoading = true,
                 errorMessage = null
             )
@@ -78,6 +106,18 @@ class ReceiptViewModel(
                         categoryId = response.categoryId,
                         category = response.category,
                         amount = formattedAmount,
+                        currency = response.currency ?: "VND",
+                        date = formatOccurredAt(response.occurredAt) ?: it.date,
+                        transactionDate = response.occurredAt,
+                        subtotal = response.subtotal,
+                        tax = response.tax,
+                        discount = response.discount,
+                        tip = response.tip,
+                        paymentMethod = response.paymentMethod ?: "UNKNOWN",
+                        categoryCandidates = response.categoryCandidates.orEmpty(),
+                        requiresClarification = response.requiresClarification,
+                        ambiguities = response.ambiguities.orEmpty(),
+                        duplicateCandidates = response.duplicateCandidates.orEmpty(),
                         isLoading = false
                     )
                 }
@@ -90,6 +130,11 @@ class ReceiptViewModel(
                         categoryId = null,
                         category = "Not available",
                         amount = "Not available",
+                        transactionDate = null,
+                        categoryCandidates = emptyList(),
+                        requiresClarification = true,
+                        ambiguities = emptyList(),
+                        duplicateCandidates = emptyList(),
                         isLoading = false,
                         errorMessage = NetworkErrorMapper.message(
                             e,
@@ -120,6 +165,16 @@ class ReceiptViewModel(
     private fun resetDateTime() {
         val now = SimpleDateFormat("hh:mm a", Locale.US).format(Date())
         _uiState.update { it.copy(date = "Today,\n$now") }
+    }
+
+    private fun formatOccurredAt(occurredAt: String?): String? {
+        if (occurredAt.isNullOrBlank()) return null
+        return try {
+            LocalDateTime.parse(occurredAt)
+                .format(DateTimeFormatter.ofPattern("MMM d, yyyy\nhh:mm a", Locale.US))
+        } catch (_: DateTimeParseException) {
+            null
+        }
     }
 
     fun confirmAndSave(
@@ -165,8 +220,8 @@ class ReceiptViewModel(
                         amount = parsedAmount,
                         type = "EXPENSE",
                         note = currentState.storeName.ifBlank { null },
-                        transactionDate = java.time.LocalDateTime.now()
-                            .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        transactionDate = currentState.transactionDate
+                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                     )
                 )
                 resetState()

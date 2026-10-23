@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.wisekoin.R
+import com.wisekoin.data.model.AiCategoryCandidateDto
 import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.NetworkErrorBanner
@@ -184,6 +185,7 @@ internal fun StoreNameCard(
 internal fun DateAndCategoryRow(
     dateText: String,
     currentCategoryId: Long?,
+    categoryCandidates: List<AiCategoryCandidateDto>,
     onCategoryChange: (Long?, String) -> Unit,
     categoryViewModel: CategoryViewModel,
     isLoggedIn: Boolean
@@ -329,7 +331,17 @@ internal fun DateAndCategoryRow(
                         )
                     }
                 } else {
-                    val categories = categoryUiState.categories
+                    val ranks = categoryCandidates.associate { it.categoryId to it.rank }
+                    val categories = categoryUiState.categories.sortedWith(
+                        compareBy({ ranks[it.id] ?: Int.MAX_VALUE }, { it.name })
+                    )
+                    if (categoryCandidates.isNotEmpty()) {
+                        Text(
+                            text = "Suggested: ${categoryCandidates.joinToString { it.category }}",
+                            fontSize = 10.sp,
+                            color = TextLight
+                        )
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         categories.chunked(2).forEach { rowItems ->
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -398,6 +410,7 @@ internal fun DateAndCategoryRow(
 @Composable
 internal fun TotalAmountCard(
     amount: String,
+    currency: String,
     onValueChange: (String) -> Unit
 ) {
     Card(
@@ -458,11 +471,57 @@ internal fun TotalAmountCard(
                 }
 
                 Text(
-                    text = "VND",
+                    text = currency,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextLight
                 )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ReceiptFactsCard(
+    subtotal: java.math.BigDecimal?,
+    tax: java.math.BigDecimal?,
+    discount: java.math.BigDecimal?,
+    tip: java.math.BigDecimal?,
+    paymentMethod: String,
+    currency: String
+) {
+    val facts = listOfNotNull(
+        subtotal?.let { "Subtotal" to it.toPlainString() },
+        tax?.let { "Tax" to it.toPlainString() },
+        discount?.let { "Discount" to it.toPlainString() },
+        tip?.let { "Tip" to it.toPlainString() },
+        paymentMethod.takeUnless { it == "UNKNOWN" }?.let {
+            "Payment" to it.lowercase().replace('_', ' ')
+        }
+    )
+    if (facts.isEmpty()) return
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = CandyBg)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("RECEIPT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+            facts.forEach { (label, value) ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(label, fontSize = 12.sp, color = TextLight)
+                    Text(
+                        if (label == "Payment") value else "$value $currency",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextDark
+                    )
+                }
             }
         }
     }

@@ -55,7 +55,9 @@ data class TransactionRequest(
     @SerializedName("walletId")
     val walletId: Long,
     @SerializedName("categoryId")
-    val categoryId: Long,
+    val categoryId: Long?,
+    @SerializedName("destinationWalletId")
+    val destinationWalletId: Long? = null,
     @SerializedName("amount")
     val amount: BigDecimal,
     @SerializedName("type")

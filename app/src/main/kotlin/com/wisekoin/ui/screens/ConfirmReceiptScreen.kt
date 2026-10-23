@@ -130,6 +130,35 @@ fun ConfirmReceiptScreen(
             )
         }
 
+        if (uiState.requiresClarification) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = LemonDark.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Review suggested details",
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark
+                    )
+                    if (uiState.duplicateCandidates.isNotEmpty()) {
+                        Text(
+                            text = "Possible duplicate: ${uiState.duplicateCandidates.size} similar transaction(s) already exist.",
+                            fontSize = 12.sp,
+                            color = PrimaryRed
+                        )
+                    }
+                    val issues = uiState.ambiguities
+                        .joinToString { "${it.field}: ${it.code.lowercase().replace('_', ' ')}" }
+                    if (issues.isNotBlank()) {
+                        Text(text = issues, fontSize = 12.sp, color = TextDark)
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(22.dp))
 
         ReceiptImageSection(
@@ -149,6 +178,7 @@ fun ConfirmReceiptScreen(
         DateAndCategoryRow(
             dateText = uiState.date,
             currentCategoryId = uiState.categoryId,
+            categoryCandidates = uiState.categoryCandidates,
             onCategoryChange = { categoryId, category ->
                 viewModel.updateCategory(categoryId, category)
             },
@@ -168,7 +198,17 @@ fun ConfirmReceiptScreen(
 
         TotalAmountCard(
             amount = uiState.amount,
+            currency = uiState.currency,
             onValueChange = { viewModel.updateAmount(it) }
+        )
+
+        ReceiptFactsCard(
+            subtotal = uiState.subtotal,
+            tax = uiState.tax,
+            discount = uiState.discount,
+            tip = uiState.tip,
+            paymentMethod = uiState.paymentMethod,
+            currency = uiState.currency
         )
 
         if (isLoggedIn && walletOptions.isNotEmpty()) {

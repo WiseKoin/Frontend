@@ -81,6 +81,7 @@ fun VoiceRecordingScreen(
     }
 
     var selectedWalletId by remember { mutableStateOf<Long?>(null) }
+    var selectedDestinationWalletId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(authUiState.isLoggedIn) {
         if (authUiState.isLoggedIn) {
@@ -92,6 +93,10 @@ fun VoiceRecordingScreen(
         if (selectedWalletId == null && walletUiState.wallets.isNotEmpty()) {
             selectedWalletId = walletUiState.wallets[0].id
         }
+    }
+
+    LaunchedEffect(uiState.currentTransactionIndex) {
+        selectedDestinationWalletId = null
     }
 
     LaunchedEffect(uiState.editableType, authUiState.isLoggedIn) {
@@ -162,12 +167,42 @@ fun VoiceRecordingScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Extracted Details",
+                                text = if (uiState.transactions.size > 1) {
+                                    "Transaction ${uiState.currentTransactionIndex + 1} of ${uiState.transactions.size}"
+                                } else {
+                                    "Extracted Details"
+                                },
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextDark
                             )
                             Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = PrimaryRed)
+                        }
+
+                        if (uiState.requiresClarification) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = LemonDark.copy(alpha = 0.2f)
+                                ),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Review this suggestion", fontWeight = FontWeight.Bold, color = TextDark)
+                                    if (uiState.duplicateCandidates.isNotEmpty()) {
+                                        Text(
+                                            "Possible duplicate: ${uiState.duplicateCandidates.size} similar transaction(s).",
+                                            fontSize = 12.sp,
+                                            color = PrimaryRed
+                                        )
+                                    }
+                                    val issues = uiState.ambiguities.joinToString {
+                                        "${it.field}: ${it.code.lowercase().replace('_', ' ')}"
+                                    }
+                                    if (issues.isNotBlank()) {
+                                        Text(issues, fontSize = 12.sp, color = TextDark)
+                                    }
+                                }
+                            }
                         }
 
                         if (uiState.transcript.isNotBlank()) {
@@ -216,6 +251,18 @@ fun VoiceRecordingScreen(
                                 ),
                                 shape = RoundedCornerShape(50)
                             )
+                            FilterChip(
+                                selected = uiState.editableType.equals("TRANSFER", ignoreCase = true),
+                                onClick = { voiceViewModel.updateType("TRANSFER") },
+                                label = { Text("Transfer", fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = LemonDark,
+                                    selectedLabelColor = TextDark,
+                                    containerColor = CandyBg,
+                                    labelColor = TextLight
+                                ),
+                                shape = RoundedCornerShape(50)
+                            )
                         }
 
                         // Amount
@@ -228,6 +275,14 @@ fun VoiceRecordingScreen(
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp)
                         )
+
+                        uiState.occurredAt?.let { occurredAt ->
+                            Text(
+                                text = "Date: ${occurredAt.replace('T', ' ')}",
+                                fontSize = 12.sp,
+                                color = TextLight
+                            )
+                        }
 
                         // Note / Merchant
                         OutlinedTextField(
@@ -251,8 +306,18 @@ fun VoiceRecordingScreen(
                                 emptyList()
                             }
                             if (categories.isNotEmpty()) {
+                                if (uiState.categoryCandidates.isNotEmpty()) {
+                                    Text(
+                                        "Suggested: ${uiState.categoryCandidates.joinToString { it.category }}",
+                                        fontSize = 11.sp,
+                                        color = TextLight
+                                    )
+                                }
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(categories) { cat ->
+                                    val ranks = uiState.categoryCandidates.associate {
+                                        it.categoryId to it.rank
+                                    }
+                                    items(categories.sortedWith(compareBy({ ranks[it.id] ?: Int.MAX_VALUE }, { it.name }))) { cat ->
                                         val isSelected = cat.id == uiState.editableCategoryId
                                         FilterChip(
                                             selected = isSelected,
@@ -268,14 +333,22 @@ fun VoiceRecordingScreen(
                                         )
                                     }
                                 }
-                            } else {
+                            } else if (uiState.editableType != "TRANSFER") {
                                 Text("Select a transaction type to load categories.", fontSize = 13.sp, color = TextDark)
                             }
                         }
 
                         // Wallet Selection
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Wallet", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                            Text(
+                                if (uiState.editableType == "TRANSFER") "Source wallet" else "Wallet",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextLight
+                            )
+                            if (uiState.sourceWalletHint.isNotBlank()) {
+                                Text("AI hint: ${uiState.sourceWalletHint}", fontSize = 11.sp, color = TextLight)
+                            }
                             val wallets = walletUiState.wallets
                             if (wallets.isNotEmpty()) {
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -283,7 +356,10 @@ fun VoiceRecordingScreen(
                                         val isSelected = wallet.id == selectedWalletId
                                         FilterChip(
                                             selected = isSelected,
-                                            onClick = { selectedWalletId = wallet.id },
+                                            onClick = {
+                                                selectedWalletId = wallet.id
+                                                selectedDestinationWalletId = null
+                                            },
                                             label = { Text(wallet.name, fontSize = 12.sp) },
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = LemonDark,
@@ -300,6 +376,40 @@ fun VoiceRecordingScreen(
                             }
                         }
 
+                        if (uiState.editableType == "TRANSFER") {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    "Destination wallet",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextLight
+                                )
+                                if (uiState.destinationWalletHint.isNotBlank()) {
+                                    Text(
+                                        "AI hint: ${uiState.destinationWalletHint}",
+                                        fontSize = 11.sp,
+                                        color = TextLight
+                                    )
+                                }
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(walletUiState.wallets.filter { it.id != selectedWalletId }) { wallet ->
+                                        FilterChip(
+                                            selected = wallet.id == selectedDestinationWalletId,
+                                            onClick = { selectedDestinationWalletId = wallet.id },
+                                            label = { Text(wallet.name, fontSize = 12.sp) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = LemonDark,
+                                                selectedLabelColor = TextDark,
+                                                containerColor = CandyBg,
+                                                labelColor = TextDark
+                                            ),
+                                            shape = RoundedCornerShape(50)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         Spacer(Modifier.height(8.dp))
 
                         // Action Buttons
@@ -308,6 +418,7 @@ fun VoiceRecordingScreen(
                                 voiceViewModel.confirmAndSave(
                                     categoryViewModel = categoryViewModel,
                                     selectedWalletId = selectedWalletId,
+                                    selectedDestinationWalletId = selectedDestinationWalletId,
                                     isLoggedIn = authUiState.isLoggedIn,
                                     onSuccess = {
                                         Toast.makeText(context, "Transaction saved successfully!", Toast.LENGTH_SHORT).show()
@@ -328,7 +439,15 @@ fun VoiceRecordingScreen(
                             if (uiState.isSubmitting) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
                             } else {
-                                Text("Confirm & Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(
+                                    if (uiState.currentTransactionIndex + 1 < uiState.transactions.size) {
+                                        "Save & Review Next"
+                                    } else {
+                                        "Confirm & Save"
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
                             }
                         }
 

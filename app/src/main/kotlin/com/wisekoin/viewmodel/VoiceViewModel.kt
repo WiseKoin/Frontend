@@ -6,8 +6,12 @@ import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wisekoin.data.model.AiCategoryCandidateDto
+import com.wisekoin.data.model.AiDuplicateCandidateDto
+import com.wisekoin.data.model.AiFieldAmbiguityDto
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.VoiceResponseDto
+import com.wisekoin.data.model.VoiceTransactionDto
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.ReceiptRepository
 import com.wisekoin.data.repository.TransactionRepository
@@ -89,6 +93,8 @@ data class VoiceUiState(
     val recordingSeconds: Int = 0,
     val isProcessing: Boolean = false,
     val voiceResult: VoiceResponseDto? = null,
+    val transactions: List<VoiceTransactionDto> = emptyList(),
+    val currentTransactionIndex: Int = 0,
     val editableAmount: String = "",
     val currency: String = "VND",
     val editableType: String = "",
@@ -96,6 +102,13 @@ data class VoiceUiState(
     val editableCategory: String = "",
     val editableNote: String = "",
     val transcript: String = "",
+    val occurredAt: String? = null,
+    val sourceWalletHint: String = "",
+    val destinationWalletHint: String = "",
+    val categoryCandidates: List<AiCategoryCandidateDto> = emptyList(),
+    val requiresClarification: Boolean = false,
+    val ambiguities: List<AiFieldAmbiguityDto> = emptyList(),
+    val duplicateCandidates: List<AiDuplicateCandidateDto> = emptyList(),
     val errorMessage: String? = null,
     val isSaveSuccess: Boolean = false,
     val isSubmitting: Boolean = false
@@ -177,27 +190,33 @@ class VoiceViewModel(
                 val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
 
                 val response = receiptRepository.extractVoice(part)
-
-                val formattedAmount = try {
-                    NumberFormat.getNumberInstance(Locale.US).format(response.amount)
-                } catch (_: Exception) {
-                    response.amount.toPlainString()
+                val transactions = response.transactions.orEmpty().ifEmpty {
+                    listOf(
+                        VoiceTransactionDto(
+                            amount = response.amount,
+                            currency = response.currency,
+                            type = response.type,
+                            categoryId = response.categoryId,
+                            category = response.category,
+                            note = response.note,
+                            occurredAt = response.occurredAt,
+                            sourceWalletHint = response.sourceWalletHint,
+                            destinationWalletHint = response.destinationWalletHint,
+                            requiresClarification = response.requiresClarification
+                        )
+                    )
                 }
-                val extractedType = response.type.uppercase()
-                    .takeIf { it == "EXPENSE" || it == "INCOME" }
-                    .orEmpty()
 
                 _uiState.update {
-                    it.copy(
+                    applyTransaction(
+                        state = it.copy(
                         isProcessing = false,
                         voiceResult = response,
-                        editableAmount = formattedAmount,
-                        currency = response.currency,
-                        editableType = extractedType,
-                        editableCategoryId = response.categoryId,
-                        editableCategory = response.category.takeUnless { it.equals("Unknown", ignoreCase = true) }.orEmpty(),
-                        editableNote = response.note ?: "",
-                        transcript = response.transcript ?: ""
+                            transactions = transactions,
+                            transcript = response.transcript ?: ""
+                        ),
+                        transaction = transactions.first(),
+                        index = 0
                     )
                 }
             } catch (error: CancellationException) {
@@ -241,6 +260,7 @@ class VoiceViewModel(
     fun confirmAndSave(
         categoryViewModel: CategoryViewModel,
         selectedWalletId: Long?,
+        selectedDestinationWalletId: Long?,
         isLoggedIn: Boolean,
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
@@ -256,8 +276,8 @@ class VoiceViewModel(
             return
         }
 
-        if (currentState.editableType != "EXPENSE" && currentState.editableType != "INCOME") {
-            onFailure("Please choose whether this transaction is an expense or income.")
+        if (currentState.editableType !in setOf("EXPENSE", "INCOME", "TRANSFER")) {
+            onFailure("Please choose whether this transaction is an expense, income, or transfer.")
             return
         }
 
@@ -267,14 +287,25 @@ class VoiceViewModel(
             return
         }
 
-        val categories = categoryViewModel.uiState.value.categories
-        val selectedCategory = categories.firstOrNull {
-            it.id == currentState.editableCategoryId &&
-                it.type.equals(currentState.editableType, ignoreCase = true)
+        val selectedCategory = if (currentState.editableType == "TRANSFER") {
+            null
+        } else {
+            categoryViewModel.uiState.value.categories.firstOrNull {
+                it.id == currentState.editableCategoryId &&
+                    it.type.equals(currentState.editableType, ignoreCase = true)
+            }
         }
 
-        if (selectedCategory == null) {
+        if (currentState.editableType != "TRANSFER" && selectedCategory == null) {
             onFailure("Category not found. Please create or select a category.")
+            return
+        }
+        if (currentState.editableType == "TRANSFER" && selectedDestinationWalletId == null) {
+            onFailure("Please select a destination wallet for this transfer.")
+            return
+        }
+        if (currentState.editableType == "TRANSFER" && selectedDestinationWalletId == selectedWalletId) {
+            onFailure("Source and destination wallets must be different.")
             return
         }
 
@@ -286,15 +317,29 @@ class VoiceViewModel(
                 transactionRepository.createTransaction(
                     TransactionRequest(
                         walletId = selectedWalletId,
-                        categoryId = selectedCategory.id,
+                        categoryId = selectedCategory?.id,
+                        destinationWalletId = selectedDestinationWalletId
+                            .takeIf { currentState.editableType == "TRANSFER" },
                         amount = parsedAmount,
                         type = currentState.editableType.uppercase(),
                         note = currentState.editableNote.ifBlank { null },
-                        transactionDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        transactionDate = currentState.occurredAt
+                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                     )
                 )
-                resetState()
-                onSuccess()
+                val nextIndex = currentState.currentTransactionIndex + 1
+                if (nextIndex < currentState.transactions.size) {
+                    _uiState.update {
+                        applyTransaction(
+                            state = it.copy(isSubmitting = false),
+                            transaction = currentState.transactions[nextIndex],
+                            index = nextIndex
+                        )
+                    }
+                } else {
+                    resetState()
+                    onSuccess()
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (e: Exception) {
@@ -315,6 +360,39 @@ class VoiceViewModel(
                 _uiState.update { it.copy(recordingSeconds = it.recordingSeconds + 1) }
             }
         }
+    }
+
+    private fun applyTransaction(
+        state: VoiceUiState,
+        transaction: VoiceTransactionDto,
+        index: Int
+    ): VoiceUiState {
+        val formattedAmount = try {
+            NumberFormat.getNumberInstance(Locale.US).format(transaction.amount)
+        } catch (_: Exception) {
+            transaction.amount.toPlainString()
+        }
+        val extractedType = transaction.type.uppercase()
+            .takeIf { it == "EXPENSE" || it == "INCOME" || it == "TRANSFER" }
+            .orEmpty()
+        return state.copy(
+            currentTransactionIndex = index,
+            editableAmount = formattedAmount,
+            currency = transaction.currency,
+            editableType = extractedType,
+            editableCategoryId = transaction.categoryId,
+            editableCategory = transaction.category
+                .takeUnless { it.equals("Unknown", ignoreCase = true) }
+                .orEmpty(),
+            editableNote = transaction.note ?: "",
+            occurredAt = transaction.occurredAt,
+            sourceWalletHint = transaction.sourceWalletHint.orEmpty(),
+            destinationWalletHint = transaction.destinationWalletHint.orEmpty(),
+            categoryCandidates = transaction.categoryCandidates.orEmpty(),
+            requiresClarification = transaction.requiresClarification,
+            ambiguities = transaction.ambiguities.orEmpty(),
+            duplicateCandidates = transaction.duplicateCandidates.orEmpty()
+        )
     }
 
     fun resetState() {

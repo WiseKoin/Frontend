@@ -109,6 +109,11 @@ data class VoiceUiState(
     val requiresClarification: Boolean = false,
     val ambiguities: List<AiFieldAmbiguityDto> = emptyList(),
     val duplicateCandidates: List<AiDuplicateCandidateDto> = emptyList(),
+    val extractionId: String? = null,
+    val suggestedSourceWalletId: Long? = null,
+    val suggestedDestinationWalletId: Long? = null,
+    val ruleApplied: Boolean = false,
+    val rememberAiCategory: Boolean = false,
     val errorMessage: String? = null,
     val isSaveSuccess: Boolean = false,
     val isSubmitting: Boolean = false
@@ -202,6 +207,10 @@ class VoiceViewModel(
                             occurredAt = response.occurredAt,
                             sourceWalletHint = response.sourceWalletHint,
                             destinationWalletHint = response.destinationWalletHint,
+                            extractionId = response.extractionId,
+                            counterparty = response.counterparty,
+                            sourceWalletId = response.sourceWalletId,
+                            destinationWalletId = response.destinationWalletId,
                             requiresClarification = response.requiresClarification
                         )
                     )
@@ -255,6 +264,10 @@ class VoiceViewModel(
 
     fun updateNote(note: String) {
         _uiState.update { it.copy(editableNote = note) }
+    }
+
+    fun updateRememberAiCategory(remember: Boolean) {
+        _uiState.update { it.copy(rememberAiCategory = remember) }
     }
 
     fun confirmAndSave(
@@ -324,7 +337,9 @@ class VoiceViewModel(
                         type = currentState.editableType.uppercase(),
                         note = currentState.editableNote.ifBlank { null },
                         transactionDate = currentState.occurredAt
-                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                        aiExtractionId = currentState.extractionId,
+                        rememberAiCategory = currentState.rememberAiCategory
                     )
                 )
                 val nextIndex = currentState.currentTransactionIndex + 1
@@ -391,7 +406,12 @@ class VoiceViewModel(
             categoryCandidates = transaction.categoryCandidates.orEmpty(),
             requiresClarification = transaction.requiresClarification,
             ambiguities = transaction.ambiguities.orEmpty(),
-            duplicateCandidates = transaction.duplicateCandidates.orEmpty()
+            duplicateCandidates = transaction.duplicateCandidates.orEmpty(),
+            extractionId = transaction.extractionId,
+            suggestedSourceWalletId = transaction.sourceWalletId,
+            suggestedDestinationWalletId = transaction.destinationWalletId,
+            ruleApplied = transaction.ruleApplied,
+            rememberAiCategory = false
         )
     }
 

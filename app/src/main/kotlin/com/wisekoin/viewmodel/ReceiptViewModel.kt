@@ -44,6 +44,9 @@ data class ReceiptUiState(
     val requiresClarification: Boolean = false,
     val ambiguities: List<AiFieldAmbiguityDto> = emptyList(),
     val duplicateCandidates: List<AiDuplicateCandidateDto> = emptyList(),
+    val extractionId: String? = null,
+    val ruleApplied: Boolean = false,
+    val rememberAiCategory: Boolean = false,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -85,6 +88,9 @@ class ReceiptViewModel(
                 requiresClarification = false,
                 ambiguities = emptyList(),
                 duplicateCandidates = emptyList(),
+                extractionId = null,
+                ruleApplied = false,
+                rememberAiCategory = false,
                 isLoading = true,
                 errorMessage = null
             )
@@ -118,6 +124,8 @@ class ReceiptViewModel(
                         requiresClarification = response.requiresClarification,
                         ambiguities = response.ambiguities.orEmpty(),
                         duplicateCandidates = response.duplicateCandidates.orEmpty(),
+                        extractionId = response.extractionId,
+                        ruleApplied = response.ruleApplied,
                         isLoading = false
                     )
                 }
@@ -135,6 +143,7 @@ class ReceiptViewModel(
                         requiresClarification = true,
                         ambiguities = emptyList(),
                         duplicateCandidates = emptyList(),
+                        extractionId = null,
                         isLoading = false,
                         errorMessage = NetworkErrorMapper.message(
                             e,
@@ -156,6 +165,10 @@ class ReceiptViewModel(
 
     fun updateCategory(categoryId: Long?, category: String) {
         _uiState.update { it.copy(categoryId = categoryId, category = category) }
+    }
+
+    fun updateRememberAiCategory(remember: Boolean) {
+        _uiState.update { it.copy(rememberAiCategory = remember) }
     }
 
     fun updateDate(date: String) {
@@ -221,7 +234,9 @@ class ReceiptViewModel(
                         type = "EXPENSE",
                         note = currentState.storeName.ifBlank { null },
                         transactionDate = currentState.transactionDate
-                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                        aiExtractionId = currentState.extractionId,
+                        rememberAiCategory = currentState.rememberAiCategory
                     )
                 )
                 resetState()

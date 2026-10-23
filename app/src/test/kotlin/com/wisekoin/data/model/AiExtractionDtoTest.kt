@@ -131,6 +131,9 @@ class AiExtractionDtoTest {
                   "category": "Unknown",
                   "note": "Move money",
                   "occurred_at": "2026-10-23T09:00:00",
+                  "extraction_id": "550e8400-e29b-41d4-a716-446655440001",
+                  "source_wallet_id": 1,
+                  "destination_wallet_id": 2,
                   "source_wallet_hint": "Cash",
                   "destination_wallet_hint": "Savings",
                   "category_candidates": [],
@@ -147,6 +150,12 @@ class AiExtractionDtoTest {
         assertEquals(2, response.transactions?.size)
         assertEquals("TRANSFER", response.transactions?.get(1)?.type)
         assertEquals("Savings", response.transactions?.get(1)?.destinationWalletHint)
+        assertEquals(1L, response.transactions?.get(1)?.sourceWalletId)
+        assertEquals(2L, response.transactions?.get(1)?.destinationWalletId)
+        assertEquals(
+            "550e8400-e29b-41d4-a716-446655440001",
+            response.transactions?.get(1)?.extractionId
+        )
         assertNull(response.transactions?.get(1)?.categoryId)
     }
 
@@ -164,5 +173,50 @@ class AiExtractionDtoTest {
 
         assertTrue(json.contains("\"destinationWalletId\":2"))
         assertTrue(!json.contains("categoryId"))
+    }
+
+    @Test
+    fun adaptiveReceiptResponseAndConfirmation_preserveSuggestionMetadata() {
+        val response = gson.fromJson(
+            """
+            {
+              "store_name": "Coffee House",
+              "category_id": 12,
+              "category": "Dining",
+              "amount": 45000,
+              "extraction_id": "550e8400-e29b-41d4-a716-446655440000",
+              "prompt_version": "receipt-v2",
+              "model_version": "gemini-test",
+              "provider": "GEMINI",
+              "rule_applied": true,
+              "confidence": {
+                "score": 0.95,
+                "level": "HIGH",
+                "reasons": ["CONFIRMED_MERCHANT_RULE"],
+                "profile": "baseline-v1",
+                "calibrated": false
+              }
+            }
+            """.trimIndent(),
+            ReceiptResponseDto::class.java
+        )
+
+        assertEquals("550e8400-e29b-41d4-a716-446655440000", response.extractionId)
+        assertEquals("receipt-v2", response.promptVersion)
+        assertEquals(BigDecimal("0.95"), response.confidence?.score)
+        assertTrue(response.ruleApplied)
+        assertTrue(response.confidence?.calibrated == false)
+
+        val confirmation = TransactionRequest(
+            walletId = 1,
+            categoryId = 12,
+            amount = BigDecimal("45000"),
+            type = "EXPENSE",
+            aiExtractionId = response.extractionId,
+            rememberAiCategory = true
+        )
+        val json = gson.toJson(confirmation)
+        assertTrue(json.contains("\"aiExtractionId\":\"550e8400-e29b-41d4-a716-446655440000\""))
+        assertTrue(json.contains("\"rememberAiCategory\":true"))
     }
 }

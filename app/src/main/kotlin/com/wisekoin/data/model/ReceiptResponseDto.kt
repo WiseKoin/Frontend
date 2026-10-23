@@ -32,6 +32,19 @@ data class AiDuplicateCandidateDto(
     val matchReasons: List<String> = emptyList()
 )
 
+data class AiConfidenceDto(
+    @SerializedName("score")
+    val score: BigDecimal,
+    @SerializedName("level")
+    val level: String,
+    @SerializedName("reasons")
+    val reasons: List<String> = emptyList(),
+    @SerializedName("profile")
+    val profile: String,
+    @SerializedName("calibrated")
+    val calibrated: Boolean = false
+)
+
 data class ReceiptResponseDto (
     @SerializedName("store_name")
     val storeName: String,
@@ -76,7 +89,25 @@ data class ReceiptResponseDto (
     val ambiguities: List<AiFieldAmbiguityDto>? = null,
 
     @SerializedName("duplicate_candidates")
-    val duplicateCandidates: List<AiDuplicateCandidateDto>? = null
+    val duplicateCandidates: List<AiDuplicateCandidateDto>? = null,
+
+    @SerializedName("extraction_id")
+    val extractionId: String? = null,
+
+    @SerializedName("prompt_version")
+    val promptVersion: String? = null,
+
+    @SerializedName("model_version")
+    val modelVersion: String? = null,
+
+    @SerializedName("provider")
+    val provider: String? = null,
+
+    @SerializedName("rule_applied")
+    val ruleApplied: Boolean = false,
+
+    @SerializedName("confidence")
+    val confidence: AiConfidenceDto? = null
 )
 
 data class VoiceTransactionDto(
@@ -117,7 +148,34 @@ data class VoiceTransactionDto(
     val ambiguities: List<AiFieldAmbiguityDto>? = null,
 
     @SerializedName("duplicate_candidates")
-    val duplicateCandidates: List<AiDuplicateCandidateDto>? = null
+    val duplicateCandidates: List<AiDuplicateCandidateDto>? = null,
+
+    @SerializedName("extraction_id")
+    val extractionId: String? = null,
+
+    @SerializedName("counterparty")
+    val counterparty: String? = null,
+
+    @SerializedName("source_wallet_id")
+    val sourceWalletId: Long? = null,
+
+    @SerializedName("destination_wallet_id")
+    val destinationWalletId: Long? = null,
+
+    @SerializedName("prompt_version")
+    val promptVersion: String? = null,
+
+    @SerializedName("model_version")
+    val modelVersion: String? = null,
+
+    @SerializedName("provider")
+    val provider: String? = null,
+
+    @SerializedName("rule_applied")
+    val ruleApplied: Boolean = false,
+
+    @SerializedName("confidence")
+    val confidence: AiConfidenceDto? = null
 )
 
 data class VoiceResponseDto(
@@ -155,5 +213,17 @@ data class VoiceResponseDto(
     val requiresClarification: Boolean = false,
 
     @SerializedName("transactions")
-    val transactions: List<VoiceTransactionDto>? = null
+    val transactions: List<VoiceTransactionDto>? = null,
+
+    @SerializedName("extraction_id")
+    val extractionId: String? = null,
+
+    @SerializedName("counterparty")
+    val counterparty: String? = null,
+
+    @SerializedName("source_wallet_id")
+    val sourceWalletId: Long? = null,
+
+    @SerializedName("destination_wallet_id")
+    val destinationWalletId: Long? = null
 )

@@ -69,7 +69,11 @@ data class TransactionRequest(
     @SerializedName("goalId")
     val goalId: Long? = null,
     @SerializedName("debtId")
-    val debtId: Long? = null
+    val debtId: Long? = null,
+    @SerializedName("aiExtractionId")
+    val aiExtractionId: String? = null,
+    @SerializedName("rememberAiCategory")
+    val rememberAiCategory: Boolean = false
 )
 
 data class DebtInfoDto(

@@ -89,14 +89,19 @@ fun VoiceRecordingScreen(
         }
     }
 
-    LaunchedEffect(walletUiState.wallets) {
-        if (selectedWalletId == null && walletUiState.wallets.isNotEmpty()) {
-            selectedWalletId = walletUiState.wallets[0].id
-        }
-    }
-
-    LaunchedEffect(uiState.currentTransactionIndex) {
-        selectedDestinationWalletId = null
+    LaunchedEffect(
+        walletUiState.wallets,
+        uiState.currentTransactionIndex,
+        uiState.suggestedSourceWalletId,
+        uiState.suggestedDestinationWalletId
+    ) {
+        val walletIds = walletUiState.wallets.map { it.id }.toSet()
+        selectedWalletId = uiState.suggestedSourceWalletId
+            ?.takeIf { it in walletIds }
+            ?: selectedWalletId?.takeIf { it in walletIds }
+            ?: walletUiState.wallets.firstOrNull()?.id
+        selectedDestinationWalletId = uiState.suggestedDestinationWalletId
+            ?.takeIf { it in walletIds && it != selectedWalletId }
     }
 
     LaunchedEffect(uiState.editableType, authUiState.isLoggedIn) {
@@ -411,6 +416,33 @@ fun VoiceRecordingScreen(
                         }
 
                         Spacer(Modifier.height(8.dp))
+
+                        if (
+                            uiState.extractionId != null &&
+                            uiState.editableCategoryId != null &&
+                            uiState.editableType != "TRANSFER"
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        voiceViewModel.updateRememberAiCategory(
+                                            !uiState.rememberAiCategory
+                                        )
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = uiState.rememberAiCategory,
+                                    onCheckedChange = voiceViewModel::updateRememberAiCategory
+                                )
+                                Text(
+                                    "Remember this merchant and category",
+                                    fontSize = 14.sp,
+                                    color = TextDark
+                                )
+                            }
+                        }
 
                         // Action Buttons
                         Button(

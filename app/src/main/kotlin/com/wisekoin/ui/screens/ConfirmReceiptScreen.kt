@@ -266,6 +266,28 @@ fun ConfirmReceiptScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (uiState.extractionId != null && uiState.categoryId != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.updateRememberAiCategory(!uiState.rememberAiCategory)
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = uiState.rememberAiCategory,
+                    onCheckedChange = viewModel::updateRememberAiCategory
+                )
+                Text(
+                    text = "Remember this merchant and category",
+                    color = TextDark,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         Button(
             onClick = {
                 viewModel.confirmAndSave(

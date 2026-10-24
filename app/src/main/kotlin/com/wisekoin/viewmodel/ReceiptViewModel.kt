@@ -10,6 +10,8 @@ import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.ReceiptRepository
 import com.wisekoin.data.repository.TransactionRepository
+import com.wisekoin.util.MoneyFormatter
+import com.wisekoin.util.TransactionTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import okhttp3.MultipartBody
 import java.math.BigDecimal
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -104,11 +105,12 @@ class ReceiptViewModel(
             try {
                 val response = receiptRepository.extractReceipt(filePart)
 
-                val formattedAmount = try {
-                    NumberFormat.getNumberInstance(Locale.US).format(response.amount)
-                } catch (_: Exception) {
-                    response.amount.toPlainString()
-                }
+                val currency = response.currency ?: MoneyFormatter.DEFAULT_CURRENCY_CODE
+                val formattedAmount = MoneyFormatter.format(
+                    amount = response.amount,
+                    currencyCode = currency,
+                    includeCurrencyCode = false
+                )
 
                 _uiState.update {
                     it.copy(
@@ -116,7 +118,7 @@ class ReceiptViewModel(
                         categoryId = response.categoryId,
                         category = response.category,
                         amount = formattedAmount,
-                        currency = response.currency ?: "VND",
+                        currency = currency,
                         date = formatOccurredAt(response.occurredAt) ?: it.date,
                         transactionDate = response.occurredAt,
                         subtotal = response.subtotal,
@@ -214,7 +216,7 @@ class ReceiptViewModel(
             return
         }
 
-        val parsedAmount = currentState.amount.replace(",", "").toBigDecimalOrNull()
+        val parsedAmount = MoneyFormatter.parse(currentState.amount, currentState.currency)
         if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
             onFailure("Please enter a valid amount.")
             return
@@ -240,7 +242,7 @@ class ReceiptViewModel(
                         type = "EXPENSE",
                         note = currentState.storeName.ifBlank { null },
                         transactionDate = currentState.transactionDate
-                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                            ?: TransactionTime.nowLocalIso(),
                         aiExtractionId = currentState.extractionId,
                         rememberAiCategory = currentState.rememberAiCategory
                     )

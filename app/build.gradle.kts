@@ -37,6 +37,33 @@ val releaseApiBaseUrl = when {
     else -> "https://invalid.local/"
 }
 
+data class ReleaseSigningValues(
+    val storeFile: String?,
+    val storePassword: String?,
+    val keyAlias: String?,
+    val keyPassword: String?
+) {
+    val anyConfigured = listOf(storeFile, storePassword, keyAlias, keyPassword).any { !it.isNullOrBlank() }
+    val fullyConfigured = listOf(storeFile, storePassword, keyAlias, keyPassword).all { !it.isNullOrBlank() }
+}
+
+fun secret(name: String): String? = providers.gradleProperty(name)
+    .orElse(providers.environmentVariable(name))
+    .orNull
+
+val releaseSigning = ReleaseSigningValues(
+    storeFile = secret("WISEKOIN_RELEASE_STORE_FILE"),
+    storePassword = secret("WISEKOIN_RELEASE_STORE_PASSWORD"),
+    keyAlias = secret("WISEKOIN_RELEASE_KEY_ALIAS"),
+    keyPassword = secret("WISEKOIN_RELEASE_KEY_PASSWORD")
+)
+
+if (releaseSigning.anyConfigured && !releaseSigning.fullyConfigured) {
+    throw GradleException(
+        "Release signing is partially configured. Set all WISEKOIN_RELEASE_* signing values."
+    )
+}
+
 android {
     namespace = "com.wisekoin"
     compileSdk {
@@ -55,13 +82,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseSigning.fullyConfigured) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseSigning.storeFile))
+                storePassword = releaseSigning.storePassword
+                keyAlias = releaseSigning.keyAlias
+                keyPassword = releaseSigning.keyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", debugApiBaseUrl.asBuildConfigString())
         }
         release {
             buildConfigField("String", "API_BASE_URL", releaseApiBaseUrl.asBuildConfigString())
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -94,7 +134,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.coil.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
@@ -103,9 +143,6 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-
-    // Coil (Presenting image)
-    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Camera
     val cameraxVersion = "1.3.4"

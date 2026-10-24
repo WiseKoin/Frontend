@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,14 +72,14 @@ internal fun ReceiptImageSection(
                         .data(imageUri)
                         .crossfade(true)
                         .build(),
-                    contentDescription = "Receipt Image",
+                    contentDescription = stringResource(R.string.receipt_image),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
                 AsyncImage(
                     model = "https://images.unsplash.com/photo-1554415707-9e4426c62c76?auto=format&fit=crop&w=600&q=80",
-                    contentDescription = "Placeholder Receipt",
+                    contentDescription = stringResource(R.string.placeholder_receipt),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -90,22 +91,23 @@ internal fun ReceiptImageSection(
         Box(
             modifier = Modifier
                 .neomorphicBox(cornerRadius = 20.dp, elevation = 4.dp)
+                .minimumInteractiveComponentSize()
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color.White)
-                .clickable { onRetake() }
+                .clickable(role = Role.Button) { onRetake() }
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Retake",
+                    contentDescription = null,
                     tint = BrandGreenDark,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Retake",
+                    text = stringResource(R.string.retake),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = BrandGreenDark
@@ -137,7 +139,7 @@ internal fun StoreNameCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "STORE NAME",
+                    text = stringResource(R.string.store_name).uppercase(),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextLight,
@@ -145,7 +147,7 @@ internal fun StoreNameCard(
                 )
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Store Name",
+                    contentDescription = stringResource(R.string.edit_store_name),
                     tint = BrandGreenDark,
                     modifier = Modifier.size(16.dp)
                 )
@@ -223,7 +225,7 @@ internal fun DateAndCategoryRow(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "DATE",
+                        text = stringResource(R.string.date).uppercase(),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextLight,
@@ -261,7 +263,7 @@ internal fun DateAndCategoryRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "CATEGORY",
+                        text = stringResource(R.string.category).uppercase(),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextLight,
@@ -282,13 +284,13 @@ internal fun DateAndCategoryRow(
                     ) {
                         Icon(
                             imageVector = if (isLoggedIn) Icons.Default.Add else Icons.Default.Lock,
-                            contentDescription = "Add Category",
+                            contentDescription = null,
                             modifier = Modifier.size(14.dp),
                             tint = if (isLoggedIn) BrandGreenDark else TextLight
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "New Category",
+                            text = stringResource(R.string.new_category),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isLoggedIn) BrandGreenDark else TextLight
@@ -314,7 +316,7 @@ internal fun DateAndCategoryRow(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Empty list (Guest mode)",
+                            text = stringResource(R.string.guest_categories_empty),
                             fontSize = 11.sp,
                             color = TextLight
                         )
@@ -325,7 +327,7 @@ internal fun DateAndCategoryRow(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Empty list. Create a new category!",
+                            text = stringResource(R.string.categories_empty),
                             fontSize = 11.sp,
                             color = TextLight
                         )
@@ -337,7 +339,10 @@ internal fun DateAndCategoryRow(
                     )
                     if (categoryCandidates.isNotEmpty()) {
                         Text(
-                            text = "Suggested: ${categoryCandidates.joinToString { it.category }}",
+                            text = stringResource(
+                                R.string.suggested_categories,
+                                categoryCandidates.joinToString { it.category }
+                            ),
                             fontSize = 10.sp,
                             color = TextLight
                         )
@@ -427,7 +432,7 @@ internal fun TotalAmountCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TOTAL AMOUNT",
+                    text = stringResource(R.string.total_amount).uppercase(),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextLight,
@@ -435,7 +440,7 @@ internal fun TotalAmountCard(
                 )
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Amount",
+                    contentDescription = stringResource(R.string.edit_amount),
                     tint = BrandGreenDark,
                     modifier = Modifier.size(16.dp)
                 )
@@ -459,7 +464,7 @@ internal fun TotalAmountCard(
                         value = amount,
                         onValueChange = onValueChange,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         textStyle = TextStyle(
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Black,
@@ -491,12 +496,12 @@ internal fun ReceiptFactsCard(
     currency: String
 ) {
     val facts = listOfNotNull(
-        subtotal?.let { "Subtotal" to it.toPlainString() },
-        tax?.let { "Tax" to it.toPlainString() },
-        discount?.let { "Discount" to it.toPlainString() },
-        tip?.let { "Tip" to it.toPlainString() },
+        subtotal?.let { Triple(stringResource(R.string.subtotal), it.toPlainString(), false) },
+        tax?.let { Triple(stringResource(R.string.tax), it.toPlainString(), false) },
+        discount?.let { Triple(stringResource(R.string.discount), it.toPlainString(), false) },
+        tip?.let { Triple(stringResource(R.string.tip), it.toPlainString(), false) },
         paymentMethod.takeUnless { it == "UNKNOWN" }?.let {
-            "Payment" to it.lowercase().replace('_', ' ')
+            Triple(stringResource(R.string.payment), it.lowercase().replace('_', ' '), true)
         }
     )
     if (facts.isEmpty()) return
@@ -511,12 +516,12 @@ internal fun ReceiptFactsCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text("RECEIPT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
-            facts.forEach { (label, value) ->
+            Text(stringResource(R.string.receipt_details).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextLight)
+            facts.forEach { (label, value, isPayment) ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(label, fontSize = 12.sp, color = TextLight)
                     Text(
-                        if (label == "Payment") value else "$value $currency",
+                        if (isPayment) value else "$value $currency",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextDark
@@ -542,7 +547,10 @@ internal fun WalletSelector(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { if (walletOptions.size > 1) expanded = !expanded }
+            .clickable(
+                enabled = walletOptions.size > 1,
+                role = Role.Button
+            ) { expanded = !expanded }
             .neomorphicBox(cornerRadius = 22.dp, elevation = 5.dp),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
@@ -571,7 +579,7 @@ internal fun WalletSelector(
                 }
                 Spacer(Modifier.width(14.dp))
                 Column {
-                    Text("Wallet", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.wallet), fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
                     Text(selectedName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 }
             }
@@ -598,7 +606,7 @@ internal fun WalletSelector(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 10.dp)
-                            .clickable {
+                            .clickable(role = Role.RadioButton) {
                                 onWalletSelect(id)
                                 expanded = false
                             },
@@ -643,7 +651,8 @@ internal fun CategoryChip(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(if (isSelected) BrandGreenDark else CandyBg.copy(alpha = 0.5f))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .minimumInteractiveComponentSize()
+            .combinedClickable(role = Role.RadioButton, onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -683,17 +692,17 @@ private fun CreateCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create a new category of ${type.lowercase()}", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.create_category_for_type, type.lowercase()), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = categoryName,
                     onValueChange = { categoryName = it },
-                    label = { Text("Category name") },
+                    label = { Text(stringResource(R.string.category_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Choose icon:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                Text(stringResource(R.string.choose_icon_label), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -707,7 +716,8 @@ private fun CreateCategoryDialog(
                                 .size(44.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isSelected) BrandGreenDark else CandyBg)
-                                .clickable { selectedIconName = iconName }
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.RadioButton) { selectedIconName = iconName }
                                 .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -731,12 +741,12 @@ private fun CreateCategoryDialog(
                 enabled = categoryName.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

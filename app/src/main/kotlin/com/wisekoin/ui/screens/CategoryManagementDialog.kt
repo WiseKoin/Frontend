@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wisekoin.R
@@ -84,7 +86,8 @@ internal fun CategoryManagementDialog(
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (selected) BrandGreenDark else CandyBg)
-                                .clickable(enabled = !isSubmitting) { icon = option },
+                                .minimumInteractiveComponentSize()
+                                .clickable(enabled = !isSubmitting, role = Role.RadioButton) { icon = option },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

@@ -28,11 +28,9 @@ class RetrofitClient(
     private val gson = Gson()
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = if (BuildConfig.DEBUG) {
-            HttpLoggingInterceptor.Level.BODY
-        } else {
-            HttpLoggingInterceptor.Level.NONE
-        }
+        redactHeader("Authorization")
+        redactHeader("Cookie")
+        level = httpLoggingLevel(BuildConfig.DEBUG)
     }
 
     private fun baseClientBuilder(): OkHttpClient.Builder = OkHttpClient.Builder()
@@ -130,6 +128,9 @@ class RetrofitClient(
         retrofit.create(DebtApiService::class.java)
     }
 }
+
+internal fun httpLoggingLevel(isDebug: Boolean): HttpLoggingInterceptor.Level =
+    if (isDebug) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
 
 internal class RefreshTokenAuthenticator(
     private val tokenStore: SessionTokenStore,

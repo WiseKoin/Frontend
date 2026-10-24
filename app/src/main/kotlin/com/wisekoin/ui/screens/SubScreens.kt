@@ -29,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wisekoin.R
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.GoalViewModel
@@ -116,13 +121,13 @@ fun VoiceRecordingScreen(
         containerColor = CandyBg,
         topBar = {
             TopAppBar(
-                title = { Text("Voice Input AI", fontWeight = FontWeight.Bold, color = TextDark) },
+                title = { Text(stringResource(R.string.voice_input_ai), fontWeight = FontWeight.Bold, color = TextDark) },
                 navigationIcon = {
                     IconButton(onClick = {
                         voiceViewModel.resetState()
                         onClose()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDark)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = TextDark)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CandyBg)
@@ -192,10 +197,14 @@ fun VoiceRecordingScreen(
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("Review this suggestion", fontWeight = FontWeight.Bold, color = TextDark)
+                                    Text(stringResource(R.string.review_voice_suggestion), fontWeight = FontWeight.Bold, color = TextDark)
                                     if (uiState.duplicateCandidates.isNotEmpty()) {
                                         Text(
-                                            "Possible duplicate: ${uiState.duplicateCandidates.size} similar transaction(s).",
+                                            pluralStringResource(
+                                                R.plurals.voice_possible_duplicates,
+                                                uiState.duplicateCandidates.size,
+                                                uiState.duplicateCandidates.size
+                                            ),
                                             fontSize = 12.sp,
                                             color = PrimaryRed
                                         )
@@ -235,7 +244,7 @@ fun VoiceRecordingScreen(
                             FilterChip(
                                 selected = uiState.editableType.equals("EXPENSE", ignoreCase = true),
                                 onClick = { voiceViewModel.updateType("EXPENSE") },
-                                label = { Text("Expense", fontWeight = FontWeight.Bold) },
+                                label = { Text(stringResource(R.string.expense), fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = PrimaryRed,
                                     selectedLabelColor = Color.White,
@@ -247,7 +256,7 @@ fun VoiceRecordingScreen(
                             FilterChip(
                                 selected = uiState.editableType.equals("INCOME", ignoreCase = true),
                                 onClick = { voiceViewModel.updateType("INCOME") },
-                                label = { Text("Income", fontWeight = FontWeight.Bold) },
+                                label = { Text(stringResource(R.string.income), fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MintDark,
                                     selectedLabelColor = TextDark,
@@ -259,7 +268,7 @@ fun VoiceRecordingScreen(
                             FilterChip(
                                 selected = uiState.editableType.equals("TRANSFER", ignoreCase = true),
                                 onClick = { voiceViewModel.updateType("TRANSFER") },
-                                label = { Text("Transfer", fontWeight = FontWeight.Bold) },
+                                label = { Text(stringResource(R.string.transfer), fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = LemonDark,
                                     selectedLabelColor = TextDark,
@@ -274,8 +283,8 @@ fun VoiceRecordingScreen(
                         OutlinedTextField(
                             value = uiState.editableAmount,
                             onValueChange = { voiceViewModel.updateAmount(it) },
-                            label = { Text("Amount (${uiState.currency})") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            label = { Text(stringResource(R.string.amount_with_currency, uiState.currency)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp)
@@ -283,7 +292,7 @@ fun VoiceRecordingScreen(
 
                         uiState.occurredAt?.let { occurredAt ->
                             Text(
-                                text = "Date: ${occurredAt.replace('T', ' ')}",
+                                text = stringResource(R.string.date_value, occurredAt.replace('T', ' ')),
                                 fontSize = 12.sp,
                                 color = TextLight
                             )
@@ -293,8 +302,8 @@ fun VoiceRecordingScreen(
                         OutlinedTextField(
                             value = uiState.editableNote,
                             onValueChange = { voiceViewModel.updateNote(it) },
-                            label = { Text("Note / Description") },
-                            placeholder = { Text("e.g. Ăn trưa, Cafe") },
+                            label = { Text(stringResource(R.string.note_description)) },
+                            placeholder = { Text(stringResource(R.string.note_example)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp)
@@ -302,7 +311,7 @@ fun VoiceRecordingScreen(
 
                         // Category Selection
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Category", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextLight)
+                            Text(stringResource(R.string.category), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextLight)
                             val categories = if (
                                 uiState.editableType == "EXPENSE" || uiState.editableType == "INCOME"
                             ) {
@@ -313,7 +322,10 @@ fun VoiceRecordingScreen(
                             if (categories.isNotEmpty()) {
                                 if (uiState.categoryCandidates.isNotEmpty()) {
                                     Text(
-                                        "Suggested: ${uiState.categoryCandidates.joinToString { it.category }}",
+                                        stringResource(
+                                            R.string.suggested_categories,
+                                            uiState.categoryCandidates.joinToString { it.category }
+                                        ),
                                         fontSize = 11.sp,
                                         color = TextLight
                                     )
@@ -339,7 +351,7 @@ fun VoiceRecordingScreen(
                                     }
                                 }
                             } else if (uiState.editableType != "TRANSFER") {
-                                Text("Select a transaction type to load categories.", fontSize = 13.sp, color = TextDark)
+                                Text(stringResource(R.string.select_transaction_type), fontSize = 13.sp, color = TextDark)
                             }
                         }
 
@@ -352,7 +364,7 @@ fun VoiceRecordingScreen(
                                 color = TextLight
                             )
                             if (uiState.sourceWalletHint.isNotBlank()) {
-                                Text("AI hint: ${uiState.sourceWalletHint}", fontSize = 11.sp, color = TextLight)
+                                Text(stringResource(R.string.ai_hint, uiState.sourceWalletHint), fontSize = 11.sp, color = TextLight)
                             }
                             val wallets = walletUiState.wallets
                             if (wallets.isNotEmpty()) {
@@ -377,21 +389,21 @@ fun VoiceRecordingScreen(
                                     }
                                 }
                             } else {
-                                Text("No wallet available. Please create a wallet first.", fontSize = 13.sp, color = PrimaryRed)
+                                Text(stringResource(R.string.create_wallet_first), fontSize = 13.sp, color = PrimaryRed)
                             }
                         }
 
                         if (uiState.editableType == "TRANSFER") {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    "Destination wallet",
+                                    stringResource(R.string.destination_wallet),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextLight
                                 )
                                 if (uiState.destinationWalletHint.isNotBlank()) {
                                     Text(
-                                        "AI hint: ${uiState.destinationWalletHint}",
+                                        stringResource(R.string.ai_hint, uiState.destinationWalletHint),
                                         fontSize = 11.sp,
                                         color = TextLight
                                     )
@@ -425,7 +437,7 @@ fun VoiceRecordingScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .clickable(role = Role.Checkbox) {
                                         voiceViewModel.updateRememberAiCategory(
                                             !uiState.rememberAiCategory
                                         )
@@ -437,7 +449,7 @@ fun VoiceRecordingScreen(
                                     onCheckedChange = voiceViewModel::updateRememberAiCategory
                                 )
                                 Text(
-                                    "Remember this merchant and category",
+                                    stringResource(R.string.remember_merchant_category),
                                     fontSize = 14.sp,
                                     color = TextDark
                                 )
@@ -492,7 +504,7 @@ fun VoiceRecordingScreen(
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Record Again", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.record_again), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -518,7 +530,7 @@ fun VoiceRecordingScreen(
                         .neomorphicBox(cornerRadius = 65.dp)
                         .clip(CircleShape)
                         .background(if (uiState.isRecording) PrimaryRed else CandyBg)
-                        .clickable(enabled = !uiState.isProcessing) {
+                        .clickable(enabled = !uiState.isProcessing, role = Role.Button) {
                             if (uiState.isRecording) {
                                 voiceViewModel.stopAndProcess()
                             } else {
@@ -533,7 +545,7 @@ fun VoiceRecordingScreen(
                 ) {
                     Icon(
                         imageVector = if (uiState.isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                        contentDescription = "Microphone",
+                        contentDescription = stringResource(R.string.microphone),
                         tint = if (uiState.isRecording) Color.White else PrimaryRed,
                         modifier = Modifier.size(56.dp)
                     )
@@ -545,14 +557,14 @@ fun VoiceRecordingScreen(
                     CircularProgressIndicator(color = PrimaryRed, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "Gemini AI is analyzing your speech...",
+                        stringResource(R.string.analyzing_speech),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextDark,
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(6.dp))
-                    Text("Extracting amount, category & note...", fontSize = 13.sp, color = TextLight)
+                    Text(stringResource(R.string.extracting_voice_fields), fontSize = 13.sp, color = TextLight)
                 } else if (uiState.isRecording) {
                     val minutes = uiState.recordingSeconds / 60
                     val seconds = uiState.recordingSeconds % 60
@@ -563,7 +575,7 @@ fun VoiceRecordingScreen(
                         color = PrimaryRed
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("Listening... Tap icon to finish", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                    Text(stringResource(R.string.listening_finish_hint), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
                     Spacer(Modifier.height(28.dp))
                     Button(
                         onClick = { voiceViewModel.stopAndProcess() },
@@ -573,13 +585,13 @@ fun VoiceRecordingScreen(
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Stop & Process", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.stop_process), fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    Text("Tap to Speak", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Text(stringResource(R.string.tap_to_speak), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Say e.g.: \"Ăn bún bò 45 nghìn\"\nor \"Coffee with friends 35k\"",
+                        stringResource(R.string.voice_example),
                         fontSize = 14.sp,
                         color = TextLight,
                         textAlign = TextAlign.Center
@@ -599,7 +611,7 @@ fun VoiceRecordingScreen(
                     ) {
                         Icon(Icons.Default.Mic, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Start Recording", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.start_recording), fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -638,10 +650,10 @@ fun CreateGoalScreen(
         containerColor = CandyBg,
         topBar = {
             TopAppBar(
-                title = { Text("Create Savings Goal", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.create_savings_goal), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CandyBg)
@@ -662,7 +674,7 @@ fun CreateGoalScreen(
                     Toast.makeText(context, "Please enter a goal title.", Toast.LENGTH_SHORT).show()
                     return@CreateGoalContent
                 }
-                val parsedAmount = targetAmount.replace(",", "").toBigDecimalOrNull()
+                val parsedAmount = MoneyFormatter.parse(targetAmount)
                 if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                     Toast.makeText(context, "Please enter a valid target amount.", Toast.LENGTH_SHORT).show()
                     return@CreateGoalContent
@@ -690,12 +702,12 @@ fun CreateGoalScreen(
                     deadlineMillis = datePickerState.selectedDateMillis
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         ) {
@@ -726,16 +738,16 @@ private fun CreateGoalContent(
         OutlinedTextField(
             value = goalName,
             onValueChange = onGoalNameChange,
-            label = { Text("Goal Title") },
-            placeholder = { Text("e.g. New Laptop") },
+            label = { Text(stringResource(R.string.goal_title)) },
+            placeholder = { Text(stringResource(R.string.goal_title_example)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
         OutlinedTextField(
             value = targetAmount,
             onValueChange = onTargetAmountChange,
-            label = { Text("Target Amount (VND)") },
-            placeholder = { Text("e.g. 20000000") },
+            label = { Text(stringResource(R.string.target_amount_vnd)) },
+            placeholder = { Text(stringResource(R.string.target_amount_example)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -745,7 +757,7 @@ private fun CreateGoalContent(
                 .fillMaxWidth()
                 .neomorphicBox(cornerRadius = 22.dp)
                 .background(CandyBg, RoundedCornerShape(22.dp))
-                .clickable { onDeadlineClick() }
+                .clickable(role = Role.Button) { onDeadlineClick() }
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
@@ -754,10 +766,10 @@ private fun CreateGoalContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Deadline", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.deadline), fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
                     Text(deadlineText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 }
-                Icon(Icons.Default.DateRange, contentDescription = "Pick date", tint = TextDark)
+                Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.pick_date), tint = TextDark)
             }
         }
         Spacer(Modifier.weight(1f))
@@ -773,7 +785,7 @@ private fun CreateGoalContent(
             if (isSubmitting) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
             } else {
-                Text("Create Goal", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(stringResource(R.string.create_goal), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }

@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +49,7 @@ import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.data.model.CategoryResponse
@@ -83,7 +85,7 @@ internal fun AmountSection(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             AmountHeader(type, onTypeSelect, activeColor, onClose)
             Spacer(Modifier.height(16.dp))
-            Text("Amount (VND)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+            Text(stringResource(R.string.amount_vnd), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
             Spacer(Modifier.height(10.dp))
             AmountInputDisplay(amount, onAmountChange, activeColor)
         }
@@ -133,7 +135,8 @@ internal fun TypeSegmentedSwitcher(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (isSelected) activeColor else Color.Transparent)
-                    .clickable { onTypeSelect(item) }
+                    .minimumInteractiveComponentSize()
+                    .clickable(role = Role.RadioButton) { onTypeSelect(item) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -239,8 +242,8 @@ internal fun LendBorrowFields(
         OutlinedTextField(
             value = counterpartName,
             onValueChange = onCounterpartNameChange,
-            label = { Text("Counterparty Name") },
-            placeholder = { Text("e.g. John Doe") },
+            label = { Text(stringResource(R.string.counterparty_name)) },
+            placeholder = { Text(stringResource(R.string.counterparty_example)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -249,7 +252,7 @@ internal fun LendBorrowFields(
                 .fillMaxWidth()
                 .neomorphicBox(cornerRadius = 22.dp)
                 .background(CandyBg, RoundedCornerShape(22.dp))
-                .clickable { onDatePickerOpen() }
+                .clickable(role = Role.Button) { onDatePickerOpen() }
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
@@ -258,7 +261,7 @@ internal fun LendBorrowFields(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Due Date", fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.due_date), fontSize = 11.sp, color = TextLight, fontWeight = FontWeight.Medium)
                     val dateText = dueDateMillis?.let {
                         try {
                             LocalDate.ofEpochDay(it / 86400000)
@@ -269,7 +272,7 @@ internal fun LendBorrowFields(
                     } ?: "No deadline (optional)"
                     Text(dateText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 }
-                Icon(Icons.Default.DateRange, contentDescription = "Pick date", tint = TextDark)
+                Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.pick_date), tint = TextDark)
             }
         }
     }
@@ -323,7 +326,7 @@ internal fun CategoryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Category ($type)", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text(stringResource(R.string.category_with_type, type), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
 
                 TextButton(
                     onClick = {
@@ -340,13 +343,13 @@ internal fun CategoryCard(
                 ) {
                     Icon(
                         imageVector = if (isLoggedIn) Icons.Default.Add else Icons.Default.Lock,
-                        contentDescription = "Add Category",
+                        contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = if (isLoggedIn) BrandGreenDark else TextLight
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "New Category",
+                        text = stringResource(R.string.new_category),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isLoggedIn) BrandGreenDark else TextLight
@@ -371,7 +374,7 @@ internal fun CategoryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Empty list (Guest mode)",
+                        text = stringResource(R.string.guest_categories_empty),
                         fontSize = 13.sp,
                         color = TextLight,
                         fontWeight = FontWeight.Medium
@@ -385,7 +388,7 @@ internal fun CategoryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Empty list. Create a new category!",
+                        text = stringResource(R.string.categories_empty),
                         fontSize = 13.sp,
                         color = TextLight,
                         fontWeight = FontWeight.Medium
@@ -472,7 +475,8 @@ internal fun CategoryBackendItemCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(68.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .minimumInteractiveComponentSize()
+            .combinedClickable(role = Role.RadioButton, onClick = onClick, onLongClick = onLongClick)
             .padding(vertical = 4.dp)
     ) {
         Box(
@@ -514,17 +518,17 @@ private fun CreateCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create a new category of ${type.lowercase()}", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.create_category_for_type, type.lowercase()), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = categoryName,
                     onValueChange = { categoryName = it },
-                    label = { Text("Category name") },
+                    label = { Text(stringResource(R.string.category_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Choose icon:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                Text(stringResource(R.string.choose_icon_label), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -538,7 +542,8 @@ private fun CreateCategoryDialog(
                                 .size(44.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isSelected) BrandGreenDark else CandyBg)
-                                .clickable { selectedIconName = iconName }
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.RadioButton) { selectedIconName = iconName }
                                 .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -562,12 +567,12 @@ private fun CreateCategoryDialog(
                 enabled = categoryName.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -617,7 +622,7 @@ internal fun CommonTransactionFields(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 10.dp)
-                        .clickable {
+                        .clickable(role = Role.Button) {
                             showWalletPicker = false
                             onCreateWallet()
                         },
@@ -638,7 +643,7 @@ internal fun CommonTransactionFields(
                         )
                     }
                     Spacer(Modifier.width(10.dp))
-                    Text("Add New Wallet", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = BrandGreenDark)
+                    Text(stringResource(R.string.add_new_wallet), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = BrandGreenDark)
                 }
                 Spacer(Modifier.height(4.dp))
             }
@@ -648,7 +653,7 @@ internal fun CommonTransactionFields(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 10.dp)
-                            .clickable {
+                            .clickable(role = Role.RadioButton) {
                                 onWalletSelect(id, name)
                                 showWalletPicker = false
                             },
@@ -702,7 +707,7 @@ fun SelectorItemRow(
             .fillMaxWidth()
             .neomorphicBox(cornerRadius = 22.dp)
             .background(CandyBg, RoundedCornerShape(22.dp))
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Row(
@@ -763,7 +768,7 @@ internal fun NoteInputBox(note: String, onNoteChange: (String) -> Unit) {
                 singleLine = true,
                 textStyle = TextStyle(fontSize = 14.sp, color = TextDark),
                 decorationBox = { inner ->
-                    if (note.isEmpty()) Text("Note (optional)...", fontSize = 14.sp, color = TextLight)
+                    if (note.isEmpty()) Text(stringResource(R.string.note_optional_hint), fontSize = 14.sp, color = TextLight)
                     inner()
                 }
             )
@@ -806,17 +811,17 @@ internal fun CreateWalletDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create New Wallet", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.create_new_wallet), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = walletName,
                     onValueChange = { walletName = it },
-                    label = { Text("Wallet Name") },
+                    label = { Text(stringResource(R.string.wallet_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Wallet Type", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+                Text(stringResource(R.string.wallet_type), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -828,7 +833,8 @@ internal fun CreateWalletDialog(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(if (isSelected) BrandGreenDark else CandyBg)
-                                .clickable { selectedType = type }
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.RadioButton) { selectedType = type }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -845,7 +851,7 @@ internal fun CreateWalletDialog(
                 OutlinedTextField(
                     value = initialBalance,
                     onValueChange = { initialBalance = it },
-                    label = { Text("Initial Balance (VND)") },
+                    label = { Text(stringResource(R.string.initial_balance_vnd_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -860,7 +866,7 @@ internal fun CreateWalletDialog(
                         Toast.makeText(context, "Please enter a wallet name.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    val balance = initialBalance.replace(",", "").toBigDecimalOrNull() ?: BigDecimal.ZERO
+                    val balance = MoneyFormatter.parse(initialBalance) ?: BigDecimal.ZERO
                     transactionEntryViewModel.createWallet(
                         request = WalletRequest(
                             name = walletName.trim(),
@@ -885,13 +891,13 @@ internal fun CreateWalletDialog(
                 if (submissionState.isSubmitting) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
                 } else {
-                    Text("Create")
+                    Text(stringResource(R.string.create))
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -922,7 +928,7 @@ internal fun QuickToolButton(
         modifier = modifier
             .neomorphicBox(cornerRadius = 18.dp, elevation = 4.dp)
             .background(CandyBg, RoundedCornerShape(18.dp))
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -949,7 +955,7 @@ internal fun SaveTransactionButton(onClick: () -> Unit, isSubmitting: Boolean) {
         } else Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CheckCircle, null, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Save Transaction", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+            Text(stringResource(R.string.save_transaction), fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
         }
     }
 }
@@ -971,7 +977,7 @@ internal fun CircularIconButton(
             .neomorphicCircle(shadowColor = Color.Black.copy(alpha = 0.08f), lightColor = Color.White, offset = 2.dp, blur = 4.dp)
             .clip(CircleShape)
             .background(CandyBg)
-            .clickable { onClick() },
+            .clickable(role = Role.Button) { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, description, tint = TextDark, modifier = Modifier.size(iconSize))
@@ -993,7 +999,7 @@ internal fun CustomTimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select Time", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.select_time), fontWeight = FontWeight.Bold) },
         text = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1020,12 +1026,12 @@ internal fun CustomTimePickerDialog(
                 onClick = { onTimeSelected(hour, minute) },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)
             ) {
-                Text("OK")
+                Text(stringResource(R.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

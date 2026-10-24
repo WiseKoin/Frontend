@@ -48,11 +48,19 @@ Debug builds default to `http://10.0.2.2:8080/` for the Android emulator. Overri
 
 Release builds require `WISEKOIN_API_BASE_URL` to be an HTTPS URL ending in `/`. Set it as an environment variable locally and as the `WISEKOIN_API_BASE_URL` repository secret for the release workflow. Release builds fail fast when it is absent or invalid.
 
+Store-distributable builds are signed by Gradle only when all four external signing values are present. The release workflow requires them, materializes the keystore in the runner's temporary directory, builds with R8 and resource shrinking, verifies both signatures, and uploads only the verified artifacts. Keystores and passwords must never be committed.
+
 ```bash
 # PowerShell example
 $env:WISEKOIN_API_BASE_URL = "https://api.example.com/"
+$env:WISEKOIN_RELEASE_STORE_FILE = "C:\secure\wisekoin-release.jks"
+$env:WISEKOIN_RELEASE_STORE_PASSWORD = "..."
+$env:WISEKOIN_RELEASE_KEY_ALIAS = "wisekoin"
+$env:WISEKOIN_RELEASE_KEY_PASSWORD = "..."
 ./gradlew assembleRelease bundleRelease
 ```
+
+Omit all four `WISEKOIN_RELEASE_*` values to produce an unsigned local R8 build for verification. Supplying only some signing values fails fast.
 
 ### API Services
 
@@ -65,6 +73,11 @@ $env:WISEKOIN_API_BASE_URL = "https://api.example.com/"
 - `GoalApiService` — CRUD goals, fund goals
 - `ReceiptApiService` — upload receipt image for AI extraction
 - `RetrofitClient` — authenticated client with automatic single-retry token refresh
+
+### Money and time contract
+
+- API and UI-domain monetary values remain `BigDecimal`. Display and input use the device locale, ISO 4217 fraction digits (capped at the backend-supported four places), and `HALF_EVEN` rounding. VND therefore has zero fraction digits; currencies such as USD retain two.
+- `transactionDate` is an ISO-8601 user-local wall time without an offset, matching the current backend DTO. Android uses the device system zone for fallback timestamps and sends that IANA zone separately with receipt/voice extraction. Neither side should reinterpret this field as UTC.
 
 ## Build and Run
 

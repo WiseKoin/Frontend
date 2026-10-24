@@ -18,12 +18,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wisekoin.R
 import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.GoalViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -49,8 +52,8 @@ fun SavingsGoalsScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            Text("Savings Goals", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
-            Text("Track and manage your savings plans based on specific goals.", fontSize = 14.sp, color = TextLight)
+            Text(stringResource(R.string.savings_goals), fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
+            Text(stringResource(R.string.savings_goals_subtitle), fontSize = 14.sp, color = TextLight)
         }
 
         // Total Saved Banner
@@ -66,7 +69,7 @@ fun SavingsGoalsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Your Active Goals",
+                    stringResource(R.string.active_goals),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
@@ -78,7 +81,7 @@ fun SavingsGoalsScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Add Goal", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(stringResource(R.string.add_goal), fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
@@ -223,13 +226,13 @@ private fun TotalSavedBanner(totalSaved: BigDecimal) {
         colors = CardDefaults.cardColors(containerColor = PrimaryRed)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text("TOTAL AMOUNT SAVED", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.total_amount_saved).uppercase(), color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Text(totalSaved.formatSavingsVND(), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(6.dp))
-                Text("Across all your savings goals", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.across_savings_goals), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -246,11 +249,11 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Failed to load goals", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryRed)
+            Text(stringResource(R.string.goals_load_failed), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryRed)
             Text(message, fontSize = 12.sp, color = TextLight)
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = onRetry) {
-                Text("Retry", fontWeight = FontWeight.Bold, color = PrimaryRed)
+                Text(stringResource(R.string.retry), fontWeight = FontWeight.Bold, color = PrimaryRed)
             }
         }
     }
@@ -286,10 +289,10 @@ private fun EmptyGoalsBanner(onAddNewGoal: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Text("No savings goals yet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            Text(stringResource(R.string.no_savings_goals), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Start your first goal and begin saving today!",
+                stringResource(R.string.no_savings_goals_subtitle),
                 fontSize = 13.sp,
                 color = TextLight,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -302,7 +305,7 @@ private fun EmptyGoalsBanner(onAddNewGoal: () -> Unit) {
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Create Goal", fontWeight = FontWeight.Bold, color = Color.White)
+                Text(stringResource(R.string.create_goal), fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     }
@@ -317,7 +320,7 @@ fun GoalCardItem(
         modifier = Modifier
             .fillMaxWidth()
             .neomorphicBox(cornerRadius = 24.dp)
-            .clickable { onClick() },
+            .clickable(role = Role.Button) { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
@@ -412,5 +415,5 @@ fun BigDecimal.formatCompactVND(): String {
 }
 
 fun BigDecimal.formatSavingsVND(): String {
-    return "%,d VND".format(this.toLong())
+    return MoneyFormatter.format(this)
 }

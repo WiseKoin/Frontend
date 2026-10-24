@@ -27,6 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,9 +38,14 @@ import androidx.compose.ui.unit.sp
 import com.wisekoin.R
 import com.wisekoin.data.model.MonthlyStatsDto
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
+import java.time.DayOfWeek
+import java.time.Month
+import java.time.format.TextStyle
+import java.util.Locale
 
 data class Transaction(
     val id: String,
@@ -62,22 +70,19 @@ data class WeeklyExpense(
 )
 
 fun BigDecimal.formatVND(): String {
-    return "%,d VND".format(this.toLong())
+    return MoneyFormatter.format(this, MoneyFormatter.DEFAULT_CURRENCY_CODE)
 }
 
-fun Long.formatVND(): String = "%,d VND".format(this)
+fun Long.formatVND(): String = BigDecimal.valueOf(this).formatVND()
 
-fun Long.formatStringVND(): String = "%,d".format(this)
+fun BigDecimal.formatStringVND(): String = MoneyFormatter.format(
+    amount = this,
+    currencyCode = MoneyFormatter.DEFAULT_CURRENCY_CODE,
+    includeCurrencyCode = false
+)
 
 fun formatAmount(raw: String): String {
-    val digits = raw.filter { it.isDigit() }
-    if (digits.isEmpty()) return ""
-    val sb = StringBuilder()
-    for ((i, char) in digits.reversed().withIndex()) {
-        if (i > 0 && i % 3 == 0) sb.append(',')
-        sb.append(char)
-    }
-    return sb.reverse().toString()
+    return MoneyFormatter.formatIntegralInput(raw)
 }
 
 fun formatTransactionTime(isoString: String): String {
@@ -123,7 +128,7 @@ fun WiseKoinTopBar(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.back),
                         tint = TextDark
                     )
                 }
@@ -131,7 +136,9 @@ fun WiseKoinTopBar(
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clip(CircleShape).clickable { onProfileClick() }
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button) { onProfileClick() }
             ) {
                 Box(
                     modifier = Modifier
@@ -142,14 +149,18 @@ fun WiseKoinTopBar(
                 ) {
                     Icon(
                         Icons.Default.Person,
-                        contentDescription = "User Avatar",
+                        contentDescription = stringResource(R.string.user_avatar),
                         tint = Color.White
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = if (userName == "Guest") "Hello," else "Welcome back,",
+                        text = if (userName == stringResource(R.string.guest)) {
+                            stringResource(R.string.hello)
+                        } else {
+                            stringResource(R.string.welcome_back)
+                        },
                         fontSize = 12.sp,
                         color = TextLight,
                         fontWeight = FontWeight.Medium
@@ -166,16 +177,16 @@ fun WiseKoinTopBar(
 
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .neomorphicBox(cornerRadius = 22.dp)
                 .clip(CircleShape)
                 .background(CandyBg)
-                .clickable { onNotificationClick() },
+                .clickable(role = Role.Button) { onNotificationClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Notifications,
-                contentDescription = "Notifications",
+                contentDescription = stringResource(R.string.notifications),
                 tint = TextDark
             )
         }
@@ -218,7 +229,7 @@ fun AppTopBar(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "WiseKoin",
+                text = stringResource(R.string.app_name),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 color = BrandGreenDark
@@ -232,7 +243,7 @@ fun AppTopBar(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .neomorphicCircle(
                         shadowColor = Color.Black.copy(alpha = 0.08f),
                         lightColor = Color.White,
@@ -241,12 +252,12 @@ fun AppTopBar(
                     )
                     .clip(CircleShape)
                     .background(CandyBg)
-                    .clickable { onNotificationClick() },
+                    .clickable(role = Role.Button) { onNotificationClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = "Notification",
+                    contentDescription = stringResource(R.string.notifications),
                     tint = TextDark,
                     modifier = Modifier.size(20.dp)
                 )
@@ -254,15 +265,15 @@ fun AppTopBar(
 
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(MintDark.copy(alpha = 0.5f))
-                    .clickable { onProfileClick() },
+                    .clickable(role = Role.Button) { onProfileClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
+                    contentDescription = stringResource(R.string.profile),
                     tint = BrandGreenDark,
                     modifier = Modifier.size(22.dp)
                 )
@@ -441,7 +452,9 @@ fun CashFlowCard(
     val chartItems = remember(stats, dailyData, weeklyData, periodLabel) {
         when {
             isWeekly -> {
-                val weekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                val weekDays = DayOfWeek.entries.map {
+                    it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                }
                 (1..7).map { dow ->
                     val exp = weeklyData.find { it.dayOfWeek == dow }?.expense ?: BigDecimal.ZERO
                     val income = weeklyData.find { it.dayOfWeek == dow }?.income ?: BigDecimal.ZERO
@@ -457,7 +470,9 @@ fun CashFlowCard(
                 }
             }
             isMonthly -> {
-                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val monthNames = Month.entries.map {
+                    it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                }
                 stats.map { stat ->
                     ChartBarItem(
                         label = monthNames.getOrElse(stat.month - 1) { "" },
@@ -479,7 +494,9 @@ fun CashFlowCard(
                 }
             }
             else -> {
-                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val monthNames = Month.entries.map {
+                    it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                }
                 monthNames.map { ChartBarItem(it, BigDecimal.ZERO, BigDecimal.ZERO) }
             }
         }
@@ -626,13 +643,13 @@ fun RecentTransactionsSection(transactions: List<Transaction>, onSeeAll: () -> U
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Recent Transactions",
+                text = stringResource(R.string.recent_transactions),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark
             )
             TextButton(onClick = onSeeAll) {
-                Text("See All", color = PrimaryRed, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.see_all), color = PrimaryRed, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -759,12 +776,12 @@ private fun BottomNavContent(
     showFab: Boolean
 ) {
     val leftItems = listOf(
-        NavigationTabItem("overview", "Overview", Icons.Filled.GridView),
-        NavigationTabItem("expenses", "Expenses", Icons.Outlined.Payments)
+        NavigationTabItem("overview", stringResource(R.string.overview), Icons.Filled.GridView),
+        NavigationTabItem("expenses", stringResource(R.string.expenses), Icons.Outlined.Payments)
     )
     val rightItems = listOf(
-        NavigationTabItem("savings", "Savings", Icons.Outlined.Savings),
-        NavigationTabItem("debt", "Debt", Icons.Outlined.AccountBalanceWallet)
+        NavigationTabItem("savings", stringResource(R.string.savings), Icons.Outlined.Savings),
+        NavigationTabItem("debt", stringResource(R.string.debt), Icons.Outlined.AccountBalanceWallet)
     )
 
     if (showFab) {
@@ -806,8 +823,10 @@ private fun BottomNavTabCell(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() }
+            .semantics { selected = isSelected }
+            .clickable(role = Role.Tab) { onClick() }
             .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Box(
@@ -844,12 +863,12 @@ private fun CenterAddFabButton(onClick: () -> Unit) {
         containerColor = PrimaryRed,
         contentColor = Color.White,
         shape = CircleShape,
-        modifier = Modifier.size(46.dp),
+        modifier = Modifier.size(48.dp),
         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
     ) {
         Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = "Add Transaction",
+            contentDescription = stringResource(R.string.add_transaction),
             modifier = Modifier.size(24.dp)
         )
     }

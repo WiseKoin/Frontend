@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wisekoin.R
 import com.wisekoin.ui.theme.WiseKoinTheme
 import com.wisekoin.ui.theme.neomorphicCardShadow
 import com.wisekoin.viewmodel.AuthViewModel
@@ -75,7 +78,7 @@ fun RegisterScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.Savings,
-                contentDescription = "Piggy Bank",
+                contentDescription = stringResource(R.string.piggy_bank),
                 tint = WiseKoinTheme.colors.Primary,
                 modifier = Modifier.size(44.dp)
             )
@@ -84,7 +87,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Create Account",
+            text = stringResource(R.string.create_account),
             fontSize = 30.sp,
             fontWeight = FontWeight.Black,
             color = WiseKoinTheme.colors.OnBackground,
@@ -92,7 +95,7 @@ fun RegisterScreen(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Join WiseKoin and start saving today!",
+            text = stringResource(R.string.register_subtitle),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -119,7 +122,7 @@ fun RegisterScreen(
             ) {
                 // Username Field
                 Text(
-                    text = "Username",
+                    text = stringResource(R.string.username),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -128,7 +131,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    placeholder = { Text("John Doe", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                    placeholder = { Text(stringResource(R.string.username_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = {
                         Icon(Icons.Default.Person, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                     },
@@ -148,7 +151,7 @@ fun RegisterScreen(
 
                 // Email Field
                 Text(
-                    text = "Email Address",
+                    text = stringResource(R.string.email_address),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -157,7 +160,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("koinmaster@wise.com", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                    placeholder = { Text(stringResource(R.string.email_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = {
                         Icon(Icons.Default.Mail, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                     },
@@ -177,7 +180,7 @@ fun RegisterScreen(
 
                 // Password Field
                 Text(
-                    text = "Password",
+                    text = stringResource(R.string.password),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -186,7 +189,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("••••••••", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                    placeholder = { Text(stringResource(R.string.password_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = {
                         Icon(Icons.Default.Lock, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                     },
@@ -194,7 +197,9 @@ fun RegisterScreen(
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle password",
+                                contentDescription = stringResource(
+                                    if (passwordVisible) R.string.hide_password else R.string.show_password
+                                ),
                                 tint = WiseKoinTheme.colors.OnSurfaceVariant
                             )
                         }
@@ -216,7 +221,7 @@ fun RegisterScreen(
 
                 // Phone Field
                 Text(
-                    text = "Phone Number (Optional)",
+                    text = stringResource(R.string.phone_optional),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -225,7 +230,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    placeholder = { Text("0901234567", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                    placeholder = { Text(stringResource(R.string.phone_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = {
                         Icon(Icons.Default.Phone, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                     },
@@ -285,16 +290,18 @@ fun RegisterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Already have an account? ",
+                text = stringResource(R.string.already_have_account) + " ",
                 color = WiseKoinTheme.colors.OnSurfaceVariant,
                 fontSize = 15.sp
             )
             Text(
-                text = "Log In",
+                text = stringResource(R.string.log_in),
                 color = WiseKoinTheme.colors.Primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.clickable { onNavigateToLogin() }
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .clickable(role = Role.Button) { onNavigateToLogin() }
             )
         }
     }
@@ -338,7 +345,7 @@ fun SubmitRegisterButton(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Sign Up",
+                    text = stringResource(R.string.sign_up),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White

@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wisekoin.R
 import com.wisekoin.ui.theme.WiseKoinTheme
 import com.wisekoin.ui.theme.neomorphicCardShadow
 import com.wisekoin.viewmodel.AuthViewModel
@@ -73,7 +76,7 @@ fun LoginScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Savings,
-                    contentDescription = "Piggy Bank",
+                    contentDescription = stringResource(R.string.piggy_bank),
                     tint = WiseKoinTheme.colors.Primary,
                     modifier = Modifier.size(44.dp)
                 )
@@ -83,7 +86,7 @@ fun LoginScreen(
 
             // 2. Titles
             Text(
-                text = "Welcome Back!",
+                text = stringResource(R.string.welcome_back_title),
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
                 color = WiseKoinTheme.colors.OnBackground,
@@ -91,7 +94,7 @@ fun LoginScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Ready for your next Savings Adventure?",
+                text = stringResource(R.string.login_subtitle),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -118,7 +121,7 @@ fun LoginScreen(
                 ) {
                     // Email Field
                     Text(
-                        text = "Email Address",
+                        text = stringResource(R.string.email_address),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -127,7 +130,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = uiState.email,
                         onValueChange = { viewModel.updateEmail(it) },
-                        placeholder = { Text("koinmaster@wise.com", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                        placeholder = { Text(stringResource(R.string.email_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                         leadingIcon = {
                             Icon(Icons.Default.Mail, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                         },
@@ -147,7 +150,7 @@ fun LoginScreen(
 
                     // Password Field
                     Text(
-                        text = "Password",
+                        text = stringResource(R.string.password),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = WiseKoinTheme.colors.OnSurfaceVariant,
@@ -156,7 +159,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = { viewModel.updatePassword(it) },
-                        placeholder = { Text("••••••••", color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
+                        placeholder = { Text(stringResource(R.string.password_placeholder), color = WiseKoinTheme.colors.OnSurfaceVariant.copy(alpha = 0.6f)) },
                         leadingIcon = {
                             Icon(Icons.Default.Lock, contentDescription = null, tint = WiseKoinTheme.colors.Primary)
                         },
@@ -164,7 +167,9 @@ fun LoginScreen(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle password",
+                                    contentDescription = stringResource(
+                                        if (passwordVisible) R.string.hide_password else R.string.show_password
+                                    ),
                                     tint = WiseKoinTheme.colors.OnSurfaceVariant
                                 )
                             }
@@ -196,11 +201,13 @@ fun LoginScreen(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         Text(
-                            text = "Forgot password?",
+                            text = stringResource(R.string.forgot_password_question),
                             color = WiseKoinTheme.colors.Primary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { onForgotPasswordClick() }
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.Button) { onForgotPasswordClick() }
                         )
                     }
 
@@ -242,7 +249,7 @@ fun LoginScreen(
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Let's Go!",
+                                    text = stringResource(R.string.login_action),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -260,17 +267,19 @@ fun LoginScreen(
             // 5. Sign Up text
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "New to WiseKoin? ",
+                    text = stringResource(R.string.new_to_wisekoin) + " ",
                     fontSize = 16.sp,
                     color = WiseKoinTheme.colors.OnBackground,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Sign Up",
+                    text = stringResource(R.string.sign_up),
                     fontSize = 18.sp,
                     color = WiseKoinTheme.colors.Primary,
                     fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.clickable { onNavigateToSignUp() }
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable(role = Role.Button) { onNavigateToSignUp() }
                 )
             }
 

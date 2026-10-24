@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -101,11 +102,11 @@ fun ExpensesScreen(
         parseTransactionDate(it.transactionDate)?.year
     }.distinct().sorted()
     val periodLabel = when (selectedPeriod) {
-        TransactionReportPeriod.THIS_WEEK -> "This Week"
-        TransactionReportPeriod.THIS_MONTH -> "This Month"
-        TransactionReportPeriod.THIS_YEAR -> "This Year"
+        TransactionReportPeriod.THIS_WEEK -> stringResource(R.string.this_week)
+        TransactionReportPeriod.THIS_MONTH -> stringResource(R.string.this_month)
+        TransactionReportPeriod.THIS_YEAR -> stringResource(R.string.this_year)
         TransactionReportPeriod.ALL_TIME -> when (reportYears.size) {
-            0 -> "All Time"
+            0 -> stringResource(R.string.all_time)
             1 -> reportYears.first().toString()
             else -> "${reportYears.first()} – ${reportYears.last()}"
         }
@@ -117,7 +118,7 @@ fun ExpensesScreen(
                 id = tx.id.toString(),
                 title = tx.note ?: tx.category?.name ?: tx.goal?.name ?: "Transfer",
                 category = tx.category?.name ?: tx.goal?.let { "Savings goal" } ?: "Transfer",
-                amount = "-${tx.amount.toLong().formatStringVND()}đ",
+                amount = "-${tx.amount.formatStringVND()}đ",
                 isExpense = true,
                 time = formatTransactionTime(tx.transactionDate),
                 iconBgColor = PeachDark
@@ -143,8 +144,8 @@ fun ExpensesScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
-            Text("Expenses & Patterns", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
-            Text("Track your spending in this week, month or year.", fontSize = 14.sp, color = TextLight)
+            Text(stringResource(R.string.expenses_patterns), fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
+            Text(stringResource(R.string.expenses_subtitle), fontSize = 14.sp, color = TextLight)
         }
 
         item {
@@ -189,7 +190,7 @@ fun ExpensesScreen(
 
         item {
             Text(
-                text = "Expense History",
+                text = stringResource(R.string.expense_history),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark
@@ -234,7 +235,9 @@ fun ExpensesScreen(
                 Text(
                     text = stringResource(R.string.transaction_report_load_failed),
                     color = PrimaryRed,
-                    modifier = Modifier.clickable {
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable(role = Role.Button) {
                         walletViewModel.loadTransactionReport(selectedPeriod)
                     }
                 )

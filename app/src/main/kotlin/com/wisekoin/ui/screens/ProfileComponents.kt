@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.wisekoin.R
 import com.wisekoin.navigation.Screen
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
@@ -69,7 +71,7 @@ fun BadgeCard(
             .clip(RoundedCornerShape(28.dp))
             .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
             .neomorphicCardShadow(RoundedCornerShape(28.dp), elevation = 6.dp)
-            .clickable { onClick() },
+            .clickable(role = Role.Button) { onClick() },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = WiseKoinTheme.colors.SurfaceContainerLow)
     ) {
@@ -127,7 +129,7 @@ fun PreferenceItem(
             )
             .clip(RoundedCornerShape(28.dp))
             .border(2.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
-            .clickable { onClick() },
+            .clickable(role = Role.Button) { onClick() },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = WiseKoinTheme.colors.Surface)
     ) {
@@ -169,7 +171,7 @@ fun PreferenceItem(
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Go",
+                contentDescription = stringResource(R.string.open),
                 tint = WiseKoinTheme.colors.OnSurfaceVariant
             )
         }

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.wisekoin.R
 import com.wisekoin.navigation.Screen
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.theme.*
@@ -109,7 +111,7 @@ fun ProfileScreen(
                         .data(uiState.avatarUrl)
                         .crossfade(true)
                         .build(),
-                    contentDescription = "Avatar",
+                    contentDescription = stringResource(R.string.avatar),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -119,12 +121,12 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(40.dp)
+                    .size(48.dp)
                     .neomorphicCardShadow(CircleShape, elevation = 4.dp)
                     .clip(CircleShape)
                     .background(WiseKoinTheme.colors.PrimaryContainer)
                     .border(2.dp, Color.White.copy(alpha = 0.8f), CircleShape)
-                    .clickable {
+                    .clickable(role = Role.Button) {
                         galleryLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
@@ -133,7 +135,7 @@ fun ProfileScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Avatar",
+                    contentDescription = stringResource(R.string.edit_avatar),
                     tint = WiseKoinTheme.colors.OnPrimaryContainer,
                     modifier = Modifier.size(18.dp)
                 )
@@ -196,7 +198,7 @@ fun ProfileScreen(
                 .padding(horizontal = 24.dp)
         ) {
             Text(
-                text = "Preferences",
+                text = stringResource(R.string.preferences),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = WiseKoinTheme.colors.OnSurface,
@@ -237,7 +239,7 @@ fun ProfileScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Username", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(stringResource(R.string.username), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         },
                         onClick = {
@@ -265,7 +267,7 @@ fun ProfileScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Email", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(stringResource(R.string.email), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         },
                         onClick = {
@@ -292,7 +294,7 @@ fun ProfileScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Password", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(stringResource(R.string.password), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         },
                         onClick = {
@@ -319,7 +321,7 @@ fun ProfileScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Phone", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(stringResource(R.string.phone), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         },
                         onClick = {
@@ -397,13 +399,13 @@ fun ProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Logout,
-                        contentDescription = "Log Out",
+                        contentDescription = stringResource(R.string.log_out),
                         tint = PrimaryRed,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Log Out",
+                        text = stringResource(R.string.log_out),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryRed
@@ -433,13 +435,13 @@ fun ProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Login,
-                        contentDescription = "Log In",
+                        contentDescription = stringResource(R.string.log_in),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Log In",
+                        text = stringResource(R.string.log_in),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -457,7 +459,10 @@ fun ProfileScreen(
             shape = RoundedCornerShape(24.dp),
             title = {
                 Text(
-                    text = "Edit ${editingField?.replaceFirstChar { it.uppercase() }}",
+                    text = stringResource(
+                        R.string.edit_value,
+                        editingField?.replaceFirstChar { it.uppercase() }.orEmpty()
+                    ),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = WiseKoinTheme.colors.OnSurface
@@ -494,7 +499,7 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = WiseKoinTheme.colors.Surface)
                     ) {
-                        Text("Cancel", color = WiseKoinTheme.colors.OnSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.cancel), color = WiseKoinTheme.colors.OnSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                     Button(
                         onClick = {
@@ -524,7 +529,7 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = WiseKoinTheme.colors.Primary)
                     ) {
-                        Text("Save", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.save), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }

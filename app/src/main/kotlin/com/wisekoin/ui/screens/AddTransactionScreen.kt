@@ -48,6 +48,7 @@ import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.TransactionEntryViewModel
@@ -228,12 +229,12 @@ fun AddTransactionScreen(
                         showDatePicker = false
                         showTimePicker = true
                     }) {
-                        Text("OK")
+                        Text(stringResource(R.string.ok))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDatePicker = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             ) {
@@ -260,12 +261,12 @@ fun AddTransactionScreen(
                         debtDueDateMillis = debtDatePickerState.selectedDateMillis
                         showDebtDueDatePicker = false
                     }) {
-                        Text("OK")
+                        Text(stringResource(R.string.ok))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDebtDueDatePicker = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             ) {
@@ -285,7 +286,7 @@ fun AddTransactionScreen(
                 } else if (selectedType in listOf("Expense", "Income") && selectedCategoryId == null) {
                     Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
                 } else if (selectedType !in listOf("Expense", "Income")) {
-                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    val parsedAmount = MoneyFormatter.parse(amount)
                     if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                         Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
                     } else if (counterpartName.isBlank()) {
@@ -310,7 +311,7 @@ fun AddTransactionScreen(
                         )
                     }
                 } else {
-                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    val parsedAmount = MoneyFormatter.parse(amount)
                     if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                         Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
                     } else {

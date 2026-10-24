@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -87,7 +89,7 @@ fun ConfirmReceiptScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Confirm Receipt",
+            text = stringResource(R.string.confirm_receipt),
             fontSize = 28.sp,
             fontWeight = FontWeight.ExtraBold,
             color = BrandGreenDark,
@@ -95,7 +97,7 @@ fun ConfirmReceiptScreen(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Review the extracted details before saving.",
+            text = stringResource(R.string.confirm_receipt_subtitle),
             fontSize = 14.sp,
             color = TextLight,
             textAlign = TextAlign.Center
@@ -114,7 +116,7 @@ fun ConfirmReceiptScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Analyzing receipt with AI...",
+                    text = stringResource(R.string.analyzing_receipt),
                     fontSize = 13.sp,
                     color = BrandGreenDark,
                     fontWeight = FontWeight.SemiBold
@@ -123,7 +125,7 @@ fun ConfirmReceiptScreen(
         } else if (uiState.errorMessage != null) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Error: ${uiState.errorMessage}",
+                text = stringResource(R.string.error_value, uiState.errorMessage.orEmpty()),
                 fontSize = 13.sp,
                 color = Color.Red,
                 textAlign = TextAlign.Center
@@ -139,13 +141,17 @@ fun ConfirmReceiptScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = "Review suggested details",
+                        text = stringResource(R.string.review_suggestion),
                         fontWeight = FontWeight.Bold,
                         color = TextDark
                     )
                     if (uiState.duplicateCandidates.isNotEmpty()) {
                         Text(
-                            text = "Possible duplicate: ${uiState.duplicateCandidates.size} similar transaction(s) already exist.",
+                            text = pluralStringResource(
+                                R.plurals.possible_duplicates,
+                                uiState.duplicateCandidates.size,
+                                uiState.duplicateCandidates.size
+                            ),
                             fontSize = 12.sp,
                             color = PrimaryRed
                         )
@@ -241,7 +247,7 @@ fun ConfirmReceiptScreen(
                 .height(52.dp)
                 .dashedBorder(cornerRadius = 26.dp, color = DashedBorderColor)
                 .clip(RoundedCornerShape(26.dp))
-                .clickable { onScanAnotherClick() },
+                .clickable(role = Role.Button) { onScanAnotherClick() },
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -256,7 +262,7 @@ fun ConfirmReceiptScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Scan another receipt",
+                    text = stringResource(R.string.scan_another_receipt),
                     color = BrandGreenDark,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -270,7 +276,7 @@ fun ConfirmReceiptScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .clickable(role = Role.Checkbox) {
                         viewModel.updateRememberAiCategory(!uiState.rememberAiCategory)
                     },
                 verticalAlignment = Alignment.CenterVertically
@@ -280,7 +286,7 @@ fun ConfirmReceiptScreen(
                     onCheckedChange = viewModel::updateRememberAiCategory
                 )
                 Text(
-                    text = "Remember this merchant and category",
+                    text = stringResource(R.string.remember_merchant_category),
                     color = TextDark,
                     fontSize = 14.sp
                 )
@@ -319,7 +325,7 @@ fun ConfirmReceiptScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Confirm & Save",
+                    text = stringResource(R.string.confirm_save),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -327,7 +333,7 @@ fun ConfirmReceiptScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Outlined.CheckCircle,
-                    contentDescription = "Confirm",
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )

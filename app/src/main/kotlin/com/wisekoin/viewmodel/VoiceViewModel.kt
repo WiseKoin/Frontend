@@ -15,6 +15,8 @@ import com.wisekoin.data.model.VoiceTransactionDto
 import com.wisekoin.data.remote.NetworkErrorMapper
 import com.wisekoin.data.repository.ReceiptRepository
 import com.wisekoin.data.repository.TransactionRepository
+import com.wisekoin.util.MoneyFormatter
+import com.wisekoin.util.TransactionTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,10 +30,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.math.BigDecimal
-import java.text.NumberFormat
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 class AndroidAudioRecorder(private val context: Context) {
     private var recorder: MediaRecorder? = null
@@ -183,7 +181,7 @@ class VoiceViewModel(
                     it.copy(
                         isRecording = false,
                         isProcessing = false,
-                        errorMessage = "Bản ghi âm quá ngắn hoặc chưa thu được âm thanh. Vui lòng nói to rõ ràng ít nhất 1-2 giây."
+                        errorMessage = "The recording was too short or silent. Speak clearly for at least one to two seconds."
                     )
                 }
                 return@launch
@@ -303,7 +301,7 @@ class VoiceViewModel(
             return
         }
 
-        val parsedAmount = currentState.editableAmount.replace(",", "").trim().toBigDecimalOrNull()
+        val parsedAmount = MoneyFormatter.parse(currentState.editableAmount, currentState.currency)
         if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
             onFailure("Please enter a valid amount.")
             return
@@ -346,7 +344,7 @@ class VoiceViewModel(
                         type = currentState.editableType.uppercase(),
                         note = currentState.editableNote.ifBlank { null },
                         transactionDate = currentState.occurredAt
-                            ?: LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                            ?: TransactionTime.nowLocalIso(),
                         aiExtractionId = currentState.extractionId,
                         rememberAiCategory = currentState.rememberAiCategory
                     )
@@ -394,11 +392,11 @@ class VoiceViewModel(
         transaction: VoiceTransactionDto,
         index: Int
     ): VoiceUiState {
-        val formattedAmount = try {
-            NumberFormat.getNumberInstance(Locale.US).format(transaction.amount)
-        } catch (_: Exception) {
-            transaction.amount.toPlainString()
-        }
+        val formattedAmount = MoneyFormatter.format(
+            amount = transaction.amount,
+            currencyCode = transaction.currency,
+            includeCurrencyCode = false
+        )
         val extractedType = transaction.type.uppercase()
             .takeIf { it == "EXPENSE" || it == "INCOME" || it == "TRANSFER" }
             .orEmpty()

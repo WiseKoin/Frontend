@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,7 @@ import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatVND
 import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
 import com.wisekoin.viewmodel.WalletViewModel
@@ -96,7 +98,7 @@ fun DebtCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit)
+            .clickable(role = Role.Button, onClick = onEdit)
             .neomorphicBox(cornerRadius = 20.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
@@ -132,7 +134,7 @@ fun DebtCardItem(
                         } catch (e: Exception) { it }
                     } ?: "No due date"
                     val noteText = debt.note?.takeIf { it.isNotEmpty() } ?: ""
-                    Text("${noteText} • Due: $dueDateText", fontSize = 12.sp, color = TextLight)
+                    Text("$noteText • ${stringResource(R.string.due_value, dueDateText)}", fontSize = 12.sp, color = TextLight)
                     if (debt.status == "OVERDUE") {
                         Surface(
                             color = PrimaryRed.copy(alpha = 0.15f),
@@ -140,7 +142,7 @@ fun DebtCardItem(
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Text(
-                                "Overdue",
+                                stringResource(R.string.overdue),
                                 color = PrimaryRed,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -168,11 +170,11 @@ fun DebtCardItem(
                     ) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextDark)
                         Spacer(Modifier.width(4.dp))
-                        Text("Paid", fontSize = 11.sp, color = TextDark, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.paid), fontSize = 11.sp, color = TextDark, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Text(
-                        "Settled",
+                        stringResource(R.string.settled),
                         fontSize = 11.sp,
                         color = TextLight,
                         fontWeight = FontWeight.Bold
@@ -199,7 +201,9 @@ internal fun EditDebtDialog(
 ) {
     var counterpartName by rememberSaveable(debt.id) { mutableStateOf(debt.counterpartName) }
     var type by rememberSaveable(debt.id) { mutableStateOf(debt.type) }
-    var amount by rememberSaveable(debt.id) { mutableStateOf(formatAmount(debt.totalAmount.toPlainString())) }
+    var amount by rememberSaveable(debt.id) {
+        mutableStateOf(MoneyFormatter.format(debt.totalAmount, includeCurrencyCode = false))
+    }
     var dueDate by rememberSaveable(debt.id) { mutableStateOf(debt.dueDate.orEmpty()) }
     var note by rememberSaveable(debt.id) { mutableStateOf(debt.note.orEmpty()) }
     var validationMessage by rememberSaveable(debt.id) { mutableStateOf<Int?>(null) }
@@ -274,7 +278,7 @@ internal fun EditDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    val parsedAmount = MoneyFormatter.parse(amount)
                     val parsedDate = dueDate.takeIf(String::isNotBlank)?.let {
                         runCatching { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
                     }
@@ -414,7 +418,7 @@ internal fun RepayDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+                    val parsedAmount = MoneyFormatter.parse(amount)
                     when {
                         parsedAmount == null || parsedAmount <= BigDecimal.ZERO ->
                             validationMessage = R.string.invalid_repayment_amount

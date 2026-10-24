@@ -60,14 +60,13 @@ No Critical backend defect was found within the integration scope. The backend h
 - **Verification:** `RefreshTokenAuthenticatorTest` covers rotation, reuse after concurrent refresh, and terminal failure cleanup; all three tests pass. Debug compile/lint/assembly and release compile/assembly also pass.
 - **Classification:** Resolved. App-wide terminal-session navigation is now completed under WK-A04.
 
-### WK-A03 — Low — Debug BODY logging still includes authentication payloads
+### WK-A03 — Resolved (was Low) — HTTP logs omit authentication bodies and secrets
 
-- **Location:** `data/remote/RetrofitClient.kt`, `loggingInterceptor`; `data/local/TokenManager.kt`; `AndroidManifest.xml`; `res/xml/backup_rules.xml` and `data_extraction_rules.xml`.
-- **Evidence:** BODY logging is now disabled in release. Tokens are encrypted with Android Keystore and excluded from backup/transfer. Debug builds still use BODY logging and therefore expose login/register payloads to developer Logcat.
-- **Problem and impact:** Production exposure is remediated, but debug credentials can still be copied from a development device or retained in captured logs.
-- **Backend dependency:** Client-side storage protection complements, but does not replace, backend expiry, rotation, and revocation.
-- **Recommended fix:** Replace BODY logging with a redacted debug logger or omit bodies for authentication endpoints.
-- **Classification:** Residual debug-only risk; release storage, backup, and logging aspects are resolved.
+- **Location:** `data/remote/RetrofitClient.kt`, `HttpLoggingPolicyTest.kt`; `data/local/TokenManager.kt`; backup/data-extraction rules.
+- **Resolution evidence:** Debug networking now uses `BASIC`, which logs request/response lines without headers or bodies; release logging remains `NONE`. Authorization and Cookie headers are explicitly redacted as defense in depth. Login, registration, refresh-token, and provider error bodies therefore cannot be copied into Logcat by the configured logger.
+- **Storage evidence:** Token pairs remain Android-Keystore encrypted and excluded from cloud backup/device transfer.
+- **Verification:** `HttpLoggingPolicyTest` locks debug to `BASIC` and release to `NONE`; the debug unit suite passes.
+- **Classification:** Resolved in code.
 
 ### WK-A04 — Resolved (was High) — Invalid/expired sessions are resolved and routed safely
 
@@ -156,32 +155,29 @@ No Critical backend defect was found within the integration scope. The backend h
 - **Recommended fix:** Add repository/ViewModel unit tests with fakes or MockWebServer, serialization contract tests, refresh-concurrency tests, and Compose navigation tests for auth and all money-changing flows. Gate CI on unit tests and lint.
 - **Classification:** Unit-test foundation added; instrumented and broader workflow coverage remain open.
 
-### WK-A14 — Medium — Release hardening is incomplete
+### WK-A14 — Resolved (was Medium) — Release builds are shrunk, externally signed, and verified
 
-- **Location:** `app/build.gradle.kts`, `buildTypes.release` (lines 21–28); `app/proguard-rules.pro`; dependency declarations; manifest.
-- **Evidence:** CI now runs lint and unit tests, and the release workflow validates an HTTPS API URL and builds release APK/AAB artifacts. However, release minification is disabled, no external signing configuration is defined in the repository, and Coil is declared twice at different versions.
-- **Problem and impact:** The unsigned artifact is not store-deployable unless signing is supplied externally, and R8-related serialization/reflection behavior has not been exercised. The duplicate dependency also makes the effective Coil version less obvious.
-- **Backend dependency:** A real HTTPS production endpoint is required.
-- **Recommended fix:** Add external secret-backed signing, enable and test R8/resource shrinking, consolidate Coil in the version catalog, and extend the existing release workflow to publish only signed, verified artifacts.
-- **Classification:** Confirmed configuration gap; external signing setup could not be verified.
+- **Location:** `app/build.gradle.kts`; `app/proguard-rules.pro`; `gradle/libs.versions.toml`; `.github/workflows/build-release.yml`; `README.md`.
+- **Resolution evidence:** Release builds enable R8 and resource shrinking. Gson DTO metadata and Retrofit annotations have focused keep rules. Coil has one version-catalog declaration. Gradle consumes an all-or-nothing external `WISEKOIN_RELEASE_*` signing configuration; the workflow materializes the secret keystore only in the runner's temporary directory, runs tests/lint plus APK/AAB builds, verifies both Gradle-signed artifacts, publishes only those verified copies, and removes the temporary keystore.
+- **Backend dependency:** A real HTTPS production endpoint and production signing secrets still have to be configured operationally.
+- **Verification:** An unsigned local R8 build completed with an injected HTTPS test origin. A second build using an ephemeral external keystore ran `validateSigningRelease`; `apksigner` verified the resulting minified APK with one v2 signer.
+- **Classification:** Resolved in code and build automation; production secrets remain an operational prerequisite.
 
-### WK-A15 — Low — Accessibility and localization are incomplete
+### WK-A15 — Resolved in code (was Low) — UI copy and custom controls expose localization/accessibility contracts
 
-- **Location:** UI screens/components broadly; `res/values/strings.xml` contains only a small subset of visible copy; examples include clickable `Box` controls and action icons with `contentDescription = null`.
-- **Evidence:** Nearly all UI copy is hardcoded. Several non-Button click targets provide no role/semantics, some action icons lack descriptions, and custom controls do not consistently enforce 48 dp targets. English and Vietnamese error messages are mixed.
-- **Problem and impact:** Screen-reader behavior, localization, consistency, and usability under large fonts are unreliable. Static review cannot prove all touch target or contrast failures.
-- **Backend dependency:** None.
-- **Recommended fix:** Move copy to resources, standardize locale, add semantics/roles and meaningful descriptions to interactive controls, test font scale and narrow screens, and run TalkBack/accessibility scanner checks.
-- **Classification:** Confirmed implementation gap; device-level severity remains unverified.
+- **Location:** `res/values/strings.xml`; shared components; authentication, receipt, voice, transaction, goal, debt, profile, reporting, and camera screens.
+- **Resolution evidence:** Static user-facing prose is resource-backed and English is the consistent base locale. Dynamic duplicate messages use plurals. Interactive custom surfaces now declare Button, Tab, Checkbox, or RadioButton roles as appropriate; selected bottom tabs expose selected semantics. Standalone action images have resource-backed descriptions, while icons paired with an announcing parent/text remain intentionally decorative. Small custom controls use Material minimum-interactive sizing or explicit 48 dp bounds. Chart weekday/month labels now follow the device locale, and narrow/high-font balance cards already switch to a stacked layout.
+- **Verification:** Static search finds no remaining hardcoded prose in `Text(...)`; remaining literals are runtime values such as transcript, monetary progress, and punctuation. Debug compilation and unit tests pass.
+- **Limit:** TalkBack, accessibility-scanner, large-font, and narrow-device checks still require emulator/device execution before production approval.
+- **Classification:** Resolved in code; device-level accessibility smoke testing remains a release-validation task.
 
-### WK-A16 — Low — Precision and date/time assumptions are inconsistent
+### WK-A16 — Resolved (was Low) — Money precision and local-time semantics are explicit
 
-- **Location:** `ReceiptResponseDto.amount: Double`; `VoiceViewModel` lines 171–175 and 244; formatting helpers in `SharedComponents.kt` lines 58–96.
-- **Evidence:** General monetary APIs use `BigDecimal`, receipt extraction uses `Double`, voice display truncates with `toLong()`, and save parsing removes both commas and periods. UI formatting truncates decimals. Client timestamps use the device clock and have no offset.
-- **Problem and impact:** Fractional amounts can be rounded/truncated or magnified by punctuation removal, and device/server timezone differences can place transactions in an unexpected reporting period. VND commonly uses integral amounts, but the backend does not constrain scale, so this assumption is not enforced.
-- **Backend dependency:** Backend transaction amounts accept arbitrary positive `BigDecimal`; application timezone is configurable.
-- **Recommended fix:** Define currency scale/rounding in the API contract, use `BigDecimal` throughout, use locale-aware parse/format, and document whether timestamps are local application time or offset/instant values.
-- **Classification:** Confirmed inconsistency; user-visible loss depends on accepted currency rules.
+- **Location:** `util/MoneyFormatter.kt`; `util/TransactionTime.kt`; receipt/voice DTOs and ViewModels; monetary entry/reporting screens; `README.md`.
+- **Resolution evidence:** Receipt, voice, transaction, wallet, goal, and debt amounts use `BigDecimal` end to end. One formatter/parser applies the device locale, ISO 4217 fraction digits capped at the backend-supported four places, and `HALF_EVEN`; VND is zero-scale while fractional currencies retain their supported precision. Voice/receipt inputs use decimal keyboards, parsing no longer strips punctuation, and transaction lists no longer truncate with `toLong()`.
+- **Time contract:** `transactionDate` is documented as an ISO-8601 user-local wall time without an offset, matching the backend DTO. Fallback timestamps use the device system zone, while receipt/voice extraction sends the same IANA zone separately.
+- **Verification:** Unit tests cover US and Vietnamese separators, unsupported trailing input, VND scaling/rounding, fractional formatting, and deterministic zone-aware fallback timestamps.
+- **Classification:** Resolved in code and documented against the current backend contract.
 
 ### WK-A17 — Medium — Remaining advertised/backend-supported product scope is incomplete (partially resolved)
 
@@ -218,7 +214,7 @@ No Critical backend defect was found within the integration scope. The backend h
 - A real production HTTPS base URL must be provided.
 - Password recovery now has an OTP-backed backend contract; production delivery still requires correctly configured SMTP settings.
 - Safe automatic retry of financial POSTs would benefit from a backend idempotency-key contract.
-- Currency precision and timestamp/timezone semantics should be documented jointly.
+- Currency precision and local-wall-time semantics are now documented and implemented jointly; changing to instant/offset storage would require a coordinated backend contract migration.
 - Receipt/voice currently return some plain-string errors; a uniform error envelope would simplify safe client messaging, but it does not block basic integration.
 
 ## 5. Production readiness checklist
@@ -227,13 +223,13 @@ No Critical backend defect was found within the integration scope. The backend h
 
 - [x] Require an injected release HTTPS API origin and disallow release cleartext. The real repository secret still must be configured operationally.
 - [x] Implement encrypted access/refresh storage, single-flight refresh rotation, logout revocation, and terminal refresh cleanup.
-- [x] Disable BODY logging and sensitive backup exposure in release.
+- [x] Disable sensitive HTTP bodies in every build and exclude encrypted token storage from backup/transfer.
 - [x] Fix debt repayment category/wallet selection and dialog dismissal.
 - [x] Make history/statistics accurate through server paging/filtering and robust date parsing.
 - [x] Add in-flight protection to every money-changing action.
 - [x] Correct the wallet POST response contract.
 - [x] Implement wallet details/delete, debt edit/delete, and OTP-gated password/account deletion flows.
-- [ ] Expand critical-path automated tests and complete a signed, R8-enabled release gate.
+- [ ] Expand critical-path automated tests. The signed, R8-enabled release gate is complete.
 
 ### Required before a production candidate
 
@@ -241,7 +237,7 @@ No Critical backend defect was found within the integration scope. The backend h
 - [x] Put network and token access behind constructor-injected repositories and remove production mock/dead paths.
 - [x] Resolve authenticated vs guest navigation and gate protected screens/features.
 - [ ] Confirm the remaining WK-A17 feature scope; implement or remove all visible placeholders.
-- [ ] Configure and exercise signing, R8, and release network/log policies.
+- [x] Configure and exercise external signing, R8/resource shrinking, and release network/log policies.
 - [ ] Test camera, microphone, permission denial, process recreation, rotation, and cancellation on supported API levels.
 - [ ] Verify accessibility with TalkBack, large fonts, narrow screens, and touch-target checks.
 
@@ -256,25 +252,25 @@ No Critical backend defect was found within the integration scope. The backend h
 
 1. **Completed — establish release configuration.** Debug/release URLs and network policies are separated; release requires an injected HTTPS origin and rejects cleartext.
 2. **Completed — rebuild the backend session contract.** Full auth DTOs, encrypted no-backup storage, synchronized rotation, one retry, terminal cleanup, logout revocation, startup resolution, and app-wide expired-session navigation are implemented and unit-tested.
-3. **Partially completed — stop data exposure.** Release BODY logging and token backup exposure are removed. Redact or remove authentication bodies from debug logging to close WK-A03 fully.
+3. **Completed — stop data exposure.** HTTP bodies are omitted in debug and all logging is disabled in release; sensitive headers are redacted, and encrypted tokens remain excluded from backup/transfer.
 4. **Completed in code — fix contract/workflow defects.** Wallet POST typing matches the backend, and debt repayment uses explicit owned wallet/category selections with working dismissal. Device/API smoke tests remain before release approval.
 5. **Completed in code — guarantee single financial submissions.** Financial/authentication actions now reject overlapping intents and expose disabled/progress state; live slow-network rotation testing remains part of device verification.
 6. **Completed in code — make reporting truthful.** Expenses follows all server pages for an exact period, uses ISO date parsing, includes goal funding, and derives accurate labels and income/expense charts. Live large-account profiling remains.
 7. **Completed for WK-A09/WK-A10 — state/error behavior.** Typed safe error mapping, offline/timeout/rate-limit handling, retry surfaces, lifecycle-aware collection, cancellation propagation, and removal of fake fallbacks are implemented. The remaining dead/mock paths were removed while resolving WK-A12.
 8. **Partially completed — close the product scope.** Wallet details/delete, debt edit/delete, category edit/delete, goal delete/refund, base-currency editing, password recovery/change, account deletion, and OTP verification are complete. Decide the remaining WK-A17 recurring, transfer, transaction edit/delete, wallet update, goal update, and placeholder scope. Acceptance: every shipped control performs a documented flow or is removed/clearly disabled; the feature matrix is updated.
 9. **Completed — establish injectable frontend boundaries.** A composition root owns API construction, repositories accept typed clients, ViewModels accept repository interfaces/token storage, oversized screens are separated from components, and dead/mock production paths are removed.
-10. **Expand quality gates.** Add Compose/integration coverage and configure signed R8 release verification in the existing CI workflows. Acceptance: tests, lint, debug assembly, and signed release assembly pass on a clean Java/Android toolchain; smoke tests pass on at least one min-SDK and one target-SDK emulator/device.
+10. **Partially completed — expand quality gates.** CI now tests, lints, builds with R8/resource shrinking, signs through external secrets, verifies APK/AAB signatures, and publishes only verified artifacts. Compose/integration coverage and smoke tests on at least one min-SDK and one target-SDK emulator/device remain.
 
 ## 7. Verification performed and limits
 
 - Static trace covered Android routes/screens, ViewModels, DTOs, Retrofit services, manifest, Gradle configuration, storage, camera/audio utilities, and matching Spring controllers/DTOs/services/security configuration.
-- Twenty focused frontend unit tests now cover refresh rotation, concurrent stale-token reuse, terminal refresh notification/cleanup, explicit guest resolution, deduplicated session-expiry navigation state, fractional transaction timestamps, week bounds, goal-inclusive totals, all-time year bounds, single-flight submission gating, safe 5xx/OTP/current-password mapping, 429 retry metadata, timeout recovery, account-security JSON contracts, injected repository delegation, and lifecycle listener detachment; all pass.
+- Thirty-six focused frontend unit tests now also lock HTTP logging to body-free/disabled levels, verify locale-aware US and Vietnamese monetary parsing plus ISO-currency rounding, and exercise deterministic user-local fallback timestamps; all pass.
 - `gradlew testDebugUnitTest lintDebug assembleDebug` completed successfully after remediation.
-- Release configuration correctly failed without `WISEKOIN_API_BASE_URL`. With a valid HTTPS test value, `gradlew assembleRelease bundleRelease` completed successfully and the merged release manifests disabled cleartext.
+- Release configuration correctly fails without `WISEKOIN_API_BASE_URL`. With a valid HTTPS test value, an R8/resource-shrunk `assembleRelease` completed successfully. A second build with an ephemeral external keystore passed `validateSigningRelease`, and `apksigner` verified one v2 signer; the real production origin and signing material remain repository/operations secrets.
 - All 45 backend tests pass on Java 21 with an isolated H2 test profile; OTP, account-security, and internal-error redaction behavior is included in the suite. `mvnw spotless:check` also passes.
 - Development and production Compose configurations resolve successfully with their example environment files.
-- No emulator/device, configured SMTP provider, production URL, signing credentials, or AI provider credentials were available for live end-to-end validation.
+- No emulator/device, configured SMTP provider, production URL, production signing credentials, or AI provider credentials were available for live end-to-end validation.
 
 ## 8. Final verdict
 
-**Not production-ready, but WK-A01, WK-A02, and WK-A04 through WK-A12 are resolved in code.** Close the residual debug logging risk in WK-A03, decide the remaining WK-A17 product scope, configure production URL/signing/SMTP secrets, and complete device-level/end-to-end verification before approval.
+**Not production-ready, but WK-A01 through WK-A12 and WK-A14 through WK-A16 are resolved in code.** Expand WK-A13 workflow/device coverage, decide the remaining WK-A17 product scope, configure production URL/signing/SMTP secrets, and complete device-level/end-to-end verification before approval.

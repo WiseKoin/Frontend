@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -75,9 +76,9 @@ fun OverviewScreen(
                 title = tx.note ?: tx.goal?.name ?: categoryLabel,
                 category = categoryLabel,
                 amount = if (isExpense) {
-                    "-${tx.amount.toLong().formatStringVND()}"
+                    "-${tx.amount.formatStringVND()}"
                 } else {
-                    "+${tx.amount.toLong().formatStringVND()}"
+                    "+${tx.amount.formatStringVND()}"
                 },
                 isExpense = isExpense,
                 time = formatTransactionTime(tx.transactionDate),
@@ -143,7 +144,7 @@ fun OverviewScreen(
                     Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Add Transaction",
+                        stringResource(R.string.add_transaction),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -257,7 +258,9 @@ private fun WalletOverviewSection(
             else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(wallets, key = { it.id }) { wallet ->
                     Card(
-                        modifier = Modifier.width(190.dp).clickable { onWalletClick(wallet) },
+                        modifier = Modifier
+                            .width(190.dp)
+                            .clickable(role = Role.Button) { onWalletClick(wallet) },
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = CandyBg),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -450,7 +453,7 @@ private fun OverviewCreateWalletDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val balance = initialBalance.replace(",", "").toBigDecimalOrNull()
+                    val balance = com.wisekoin.util.MoneyFormatter.parse(initialBalance)
                         ?: BigDecimal.ZERO.takeIf { initialBalance.isBlank() }
                     when {
                         name.isBlank() -> validationError = R.string.wallet_name_required

@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -77,6 +78,7 @@ import com.wisekoin.ui.theme.TextDark
 import com.wisekoin.ui.theme.TextLight
 import com.wisekoin.ui.theme.neomorphicBox
 import com.wisekoin.ui.theme.neomorphicInset
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.GoalFundingError
 import com.wisekoin.viewmodel.GoalFundingErrorType
 import com.wisekoin.viewmodel.GoalViewModel
@@ -115,7 +117,7 @@ fun GoalFundingScreen(
         }
     }
 
-    val parsedAmount = amount.replace(",", "").toBigDecimalOrNull()
+    val parsedAmount = MoneyFormatter.parse(amount)
     LaunchedEffect(parsedAmount, walletState.wallets) {
         if (parsedAmount != null && parsedAmount > BigDecimal.ZERO &&
             (selectedWallet == null || selectedWallet.balance < parsedAmount)
@@ -388,7 +390,7 @@ private fun FundingWalletField(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable {
+                        .clickable(role = Role.RadioButton) {
                             onWalletSelect(wallet.id)
                             expanded = false
                         }

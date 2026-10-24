@@ -123,21 +123,21 @@ class AuthViewModel(
         val password = _uiState.value.password.trim()
 
         if (email.isBlank()) {
-            val msg = "Vui lòng nhập địa chỉ Email"
+            val msg = "Please enter your email address."
             _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return
         }
 
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() && !email.contains("@")) {
-            val msg = "Định dạng Email không hợp lệ"
+            val msg = "Please enter a valid email address."
             _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return
         }
 
         if (password.isBlank()) {
-            val msg = "Vui lòng nhập Mật khẩu"
+            val msg = "Please enter your password."
             _uiState.update { it.copy(loginErrorMessage = msg) }
             onError(msg)
             return

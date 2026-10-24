@@ -92,39 +92,42 @@ jobs:
             exit 1
           fi
 
-      - name: Run release checks and build unsigned artifacts
+      - name: Materialize release keystore
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/wisekoin-release.jks"
+
+      - name: Run release checks and build signed artifacts
         env:
           WISEKOIN_API_BASE_URL: ${{ secrets.WISEKOIN_API_BASE_URL }}
+          WISEKOIN_RELEASE_STORE_FILE: ${{ runner.temp }}/wisekoin-release.jks
+          WISEKOIN_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          WISEKOIN_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          WISEKOIN_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: >-
           ./gradlew --no-daemon --stacktrace
           lintDebug testDebugUnitTest assembleRelease bundleRelease
 
-      - name: Sign and verify APK and app bundle
+      - name: Verify and package signed APK and app bundle
         id: signing
         shell: bash
         env:
           ARTIFACT_VERSION: ${{ steps.metadata.outputs.artifact_version }}
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          keystore_path="${RUNNER_TEMP}/wisekoin-release.jks"
-          aligned_apk="${RUNNER_TEMP}/wisekoin-release-aligned.apk"
           output_dir="${GITHUB_WORKSPACE}/release-artifacts"
-          unsigned_apk="${GITHUB_WORKSPACE}/app/build/outputs/apk/release/app-release-unsigned.apk"
-          unsigned_aab="${GITHUB_WORKSPACE}/app/build/outputs/bundle/release/app-release.aab"
+          built_apk="${GITHUB_WORKSPACE}/app/build/outputs/apk/release/app-release.apk"
+          built_aab="${GITHUB_WORKSPACE}/app/build/outputs/bundle/release/app-release.aab"
           signed_apk="${output_dir}/WiseKoin-${ARTIFACT_VERSION}.apk"
           signed_aab="${output_dir}/WiseKoin-${ARTIFACT_VERSION}.aab"
 
-          trap 'rm -f "${keystore_path}" "${aligned_apk}"' EXIT
+          trap 'rm -f "${RUNNER_TEMP}/wisekoin-release.jks"' EXIT
           mkdir -p "${output_dir}"
-          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
 
-          if [[ ! -f "${unsigned_apk}" || ! -f "${unsigned_aab}" ]]; then
-            echo "Gradle did not produce the expected release APK and AAB." >&2
+          if [[ ! -f "${built_apk}" || ! -f "${built_aab}" ]]; then
+            echo "Gradle did not produce the expected signed release APK and AAB." >&2
             exit 1
           fi
 
@@ -134,23 +137,9 @@ jobs:
             exit 1
           fi
 
-          "${build_tools_dir}/zipalign" -f -v 4 "${unsigned_apk}" "${aligned_apk}"
-          "${build_tools_dir}/apksigner" sign \
-            --ks "${keystore_path}" \
-            --ks-key-alias "${KEY_ALIAS}" \
-            --ks-pass env:KEYSTORE_PASSWORD \
-            --key-pass env:KEY_PASSWORD \
-            --out "${signed_apk}" \
-            "${aligned_apk}"
+          cp "${built_apk}" "${signed_apk}"
+          cp "${built_aab}" "${signed_aab}"
           "${build_tools_dir}/apksigner" verify --verbose --print-certs "${signed_apk}"
-
-          jarsigner \
-            -keystore "${keystore_path}" \
-            -storepass:env KEYSTORE_PASSWORD \
-            -keypass:env KEY_PASSWORD \
-            -signedjar "${signed_aab}" \
-            "${unsigned_aab}" \
-            "${KEY_ALIAS}"
           jarsigner -verify -verbose -certs "${signed_aab}"
 
           cd "${output_dir}"

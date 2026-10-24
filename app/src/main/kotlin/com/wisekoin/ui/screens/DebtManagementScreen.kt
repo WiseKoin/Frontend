@@ -79,8 +79,8 @@ fun DebtManagementScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            Text("Debt Management", fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
-            Text("Easily track money lent and money borrowed.", fontSize = 14.sp, color = TextLight)
+            Text(stringResource(R.string.debt_management), fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
+            Text(stringResource(R.string.debt_management_subtitle), fontSize = 14.sp, color = TextLight)
         }
 
         item {
@@ -101,7 +101,7 @@ fun DebtManagementScreen(
                         contentColor = if (isLentTab) Color.White else TextLight
                     )
                 ) {
-                    Text("Money Lent", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.money_lent), fontWeight = FontWeight.Bold)
                 }
                 Button(
                     onClick = { isLentTab = false },
@@ -112,7 +112,7 @@ fun DebtManagementScreen(
                         contentColor = if (!isLentTab) Color.White else TextLight
                     )
                 ) {
-                    Text("Money Borrowed", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.money_borrowed), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -165,7 +165,7 @@ fun DebtManagementScreen(
                         contentColor = Color.White,
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Debt Entry")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_debt_entry))
                     }
                 }
             }
@@ -211,7 +211,10 @@ fun DebtManagementScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "No ${if (isLentTab) "lent" else "borrowed"} debts yet",
+                            stringResource(
+                                R.string.no_debts_yet,
+                                stringResource(if (isLentTab) R.string.lent else R.string.borrowed)
+                            ),
                             fontSize = 14.sp,
                             color = TextLight
                         )

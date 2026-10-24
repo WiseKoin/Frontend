@@ -32,6 +32,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -116,7 +118,7 @@ fun ScanReceiptScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Scan Receipt",
+                    text = stringResource(AppR.string.scan_receipt),
                     fontFamily = NunitoSansFamily,
                     color = Color(0xFF161A32),
                     fontSize = 32.sp,
@@ -143,7 +145,7 @@ fun ScanReceiptScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(AppR.string.back),
                         tint = Color(0xFF1E293B)
                     )
                 }
@@ -159,7 +161,7 @@ fun ScanReceiptScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Align receipt within the\nframe",
+                text = stringResource(AppR.string.align_receipt),
                 color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
@@ -340,12 +342,12 @@ private fun CameraBottomControls(
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(ControlBtnBg)
-                .clickable(onClick = onGalleryClick),
+                .clickable(role = Role.Button, onClick = onGalleryClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.PhotoLibrary,
-                contentDescription = "Gallery",
+                contentDescription = stringResource(AppR.string.gallery),
                 tint = Color.White,
                 modifier = Modifier.size(24.dp)
             )
@@ -355,7 +357,7 @@ private fun CameraBottomControls(
                 .size(80.dp)
                 .clip(CircleShape)
                 .background(Color(0xFF424242))
-                .clickable(onClick = onCaptureClick),
+                .clickable(role = Role.Button, onClick = onCaptureClick),
             contentAlignment = Alignment.Center
         ) {
             Box(
@@ -367,7 +369,7 @@ private fun CameraBottomControls(
             ) {
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Capture",
+                    contentDescription = stringResource(AppR.string.capture_receipt),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -378,12 +380,12 @@ private fun CameraBottomControls(
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(ControlBtnBg)
-                .clickable(onClick = onFlashToggle),
+                .clickable(role = Role.Button, onClick = onFlashToggle),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isFlashOn) Icons.Default.FlashAuto else Icons.Default.FlashOff,
-                contentDescription = "Toggle Flash",
+                contentDescription = stringResource(AppR.string.toggle_flash),
                 tint = if (isFlashOn) Color.Yellow else Color.White,
                 modifier = Modifier.size(24.dp)
             )

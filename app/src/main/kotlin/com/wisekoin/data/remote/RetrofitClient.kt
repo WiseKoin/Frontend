@@ -120,6 +120,10 @@ class RetrofitClient(
         retrofit.create(TransactionApiService::class.java)
     }
 
+    val aiSuggestionApi: AiSuggestionApiService by lazy {
+        retrofit.create(AiSuggestionApiService::class.java)
+    }
+
     val goalApi: GoalApiService by lazy {
         retrofit.create(GoalApiService::class.java)
     }

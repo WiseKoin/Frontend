@@ -298,4 +298,16 @@
     <string name="bank_notification_save_failed">We couldn’t save this transaction. Check your connection and try again.</string>
     <string name="bank_notification_saved">Transaction saved.</string>
     <string name="bank_notification_direction_time">%1$s · %2$s</string>
+    <string name="bank_notification_channel_name">Transaction review alerts</string>
+    <string name="bank_notification_channel_description">Alerts for locally detected bank transactions that need review.</string>
+    <string name="bank_notification_alert_title">Review a detected transaction</string>
+    <string name="bank_notification_alert_message">%1$s reported a transaction. Review it before saving.</string>
+    <string name="bank_notification_alert_private">Open WiseKoin to review a detected transaction.</string>
+    <string name="bank_notification_alert_access">Review alerts</string>
+    <string name="bank_notification_alert_access_detail">Allow WiseKoin to notify you when an allowlisted bank transaction is ready to review.</string>
+    <string name="allow_review_alerts">Allow review alerts</string>
+    <string name="review_alerts_denied">Review alerts are off. Detected transactions will remain in the in-app queue.</string>
+    <string name="syncing_bank_suggestions">Securely syncing de-identified suggestions…</string>
+    <string name="bank_suggestion_sync_failed">The suggestion is encrypted on this device, but it must sync before it can be saved.</string>
+    <string name="bank_notification_pilot_sources">Pilot sources: VCB Digibank, MB Bank, Techcombank Mobile, and MoMo.</string>
 </resources>

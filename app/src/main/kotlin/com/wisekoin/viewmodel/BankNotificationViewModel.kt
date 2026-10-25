@@ -8,10 +8,12 @@ import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.data.remote.NetworkErrorMapper
+import com.wisekoin.data.repository.BankNotificationSuggestionRepository
 import com.wisekoin.data.repository.CategoryRepository
 import com.wisekoin.data.repository.TransactionRepository
 import com.wisekoin.data.repository.WalletRepository
 import com.wisekoin.util.MoneyFormatter
+import com.wisekoin.notification.BankNotificationSyncer
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -28,6 +30,7 @@ enum class BankNotificationReviewError {
     SELECT_CATEGORY,
     CURRENCY_MISMATCH,
     OPTIONS_LOAD_FAILED,
+    SUGGESTION_SYNC_FAILED,
     SAVE_FAILED
 }
 
@@ -43,6 +46,7 @@ data class BankNotificationUiState(
     val selectedWalletId: Long? = null,
     val selectedCategoryId: Long? = null,
     val isLoadingOptions: Boolean = false,
+    val isSyncing: Boolean = false,
     val isSubmitting: Boolean = false,
     val reviewError: BankNotificationReviewError? = null,
     val networkErrorMessage: String? = null,
@@ -51,6 +55,8 @@ data class BankNotificationUiState(
 
 class BankNotificationViewModel(
     private val store: BankNotificationCandidateStore,
+    private val suggestionRepository: BankNotificationSuggestionRepository,
+    private val notificationSyncer: BankNotificationSyncer,
     private val walletRepository: WalletRepository,
     private val categoryRepository: CategoryRepository,
     private val transactionRepository: TransactionRepository
@@ -58,26 +64,29 @@ class BankNotificationViewModel(
     private val mutableState = MutableStateFlow(BankNotificationUiState())
     val uiState: StateFlow<BankNotificationUiState> = mutableState.asStateFlow()
     private val submissionGate = SubmissionGate()
+    private val syncGate = SubmissionGate()
 
     init {
         viewModelScope.launch {
             store.state.collect { stored ->
                 mutableState.update { current ->
-                    val selectedStillExists = stored.candidates.any {
+                    val selected = stored.candidates.firstOrNull {
                         it.id == current.selectedCandidate?.id
                     }
                     current.copy(
                         trackingEnabled = stored.trackingEnabled,
                         candidates = stored.candidates,
-                        selectedCandidate = current.selectedCandidate.takeIf { selectedStillExists }
+                        selectedCandidate = selected
                     )
                 }
             }
         }
+        syncPending()
     }
 
     fun setTrackingEnabled(enabled: Boolean) {
         store.setTrackingEnabled(enabled)
+        if (enabled) syncPending()
     }
 
     fun openCandidate(candidateId: String, baseCurrency: String) {
@@ -173,22 +182,71 @@ class BankNotificationViewModel(
 
     fun retryOptions() {
         val selected = mutableState.value.selectedCandidate ?: return
+        if (selected.suggestionId == null) syncPending()
         openCandidate(selected.id, mutableState.value.baseCurrency)
     }
 
     fun discard(candidateId: String) {
         if (mutableState.value.isSubmitting) return
-        store.remove(candidateId)
+        val candidate = store.state.value.candidates.firstOrNull { it.id == candidateId } ?: return
+        viewModelScope.launch {
+            try {
+                candidate.suggestionId?.let {
+                    suggestionRepository.reject(it, "NOT_RELEVANT")
+                }
+                store.remove(candidateId)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                mutableState.update {
+                    it.copy(
+                        reviewError = BankNotificationReviewError.SUGGESTION_SYNC_FAILED,
+                        networkErrorMessage = NetworkErrorMapper.message(
+                            error,
+                            "Unable to discard this suggestion. Please try again."
+                        )
+                    )
+                }
+            }
+        }
     }
 
     fun clearAll() {
         if (mutableState.value.isSubmitting) return
-        store.clearCandidates()
+        viewModelScope.launch {
+            try {
+                store.state.value.candidates.forEach { candidate ->
+                    candidate.suggestionId?.let {
+                        suggestionRepository.reject(it, "NOT_RELEVANT")
+                    }
+                    store.remove(candidate.id)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                mutableState.update {
+                    it.copy(
+                        reviewError = BankNotificationReviewError.SUGGESTION_SYNC_FAILED,
+                        networkErrorMessage = NetworkErrorMapper.message(
+                            error,
+                            "Unable to clear every suggestion. Please try again."
+                        )
+                    )
+                }
+            }
+        }
     }
 
     fun saveSelected() {
         val current = mutableState.value
         val candidate = current.selectedCandidate ?: return
+        if (candidate.suggestionId == null) {
+            mutableState.update {
+                it.copy(reviewError = BankNotificationReviewError.SUGGESTION_SYNC_FAILED)
+            }
+            syncPending()
+            return
+        }
         val amount = MoneyFormatter.parse(current.amountText, candidate.currency)
         val validationError = BankNotificationReviewValidator.validate(
             candidate = candidate,
@@ -215,8 +273,10 @@ class BankNotificationViewModel(
                         amount = requireNotNull(amount),
                         type = candidate.direction.name,
                         note = current.note.trim().takeIf(String::isNotBlank),
-                        transactionDate = candidate.occurredAt
-                    )
+                        transactionDate = candidate.occurredAt,
+                        aiExtractionId = candidate.suggestionId
+                    ),
+                    idempotencyKey = "bank-notification:${candidate.id}"
                 )
                 store.remove(candidate.id)
                 mutableState.update {
@@ -242,6 +302,34 @@ class BankNotificationViewModel(
                 }
             } finally {
                 submissionGate.finish()
+            }
+        }
+    }
+
+    fun syncPending() {
+        if (!syncGate.tryStart()) return
+        mutableState.update { it.copy(isSyncing = true, networkErrorMessage = null) }
+        viewModelScope.launch {
+            try {
+                notificationSyncer.sync()
+                mutableState.update {
+                    it.copy(isSyncing = false, reviewError = null, networkErrorMessage = null)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                mutableState.update {
+                    it.copy(
+                        isSyncing = false,
+                        reviewError = BankNotificationReviewError.SUGGESTION_SYNC_FAILED,
+                        networkErrorMessage = NetworkErrorMapper.message(
+                            error,
+                            "Detected transactions are safe on this device, but syncing failed."
+                        )
+                    )
+                }
+            } finally {
+                syncGate.finish()
             }
         }
     }

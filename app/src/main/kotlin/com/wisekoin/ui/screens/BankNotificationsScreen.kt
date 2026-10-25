@@ -1,6 +1,12 @@
 package com.wisekoin.ui.screens
 
+import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,6 +67,7 @@ import com.wisekoin.R
 import com.wisekoin.data.model.BankNotificationCandidate
 import com.wisekoin.data.model.BankNotificationDirection
 import com.wisekoin.notification.BankNotificationAccess
+import com.wisekoin.notification.BankNotificationAlertManager
 import com.wisekoin.ui.theme.CandyBg
 import com.wisekoin.ui.theme.PrimaryRed
 import com.wisekoin.util.MoneyFormatter
@@ -76,23 +83,43 @@ import java.time.format.FormatStyle
 fun BankNotificationsScreen(
     viewModel: BankNotificationViewModel,
     baseCurrency: String,
+    initialCandidateId: String? = null,
     onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var accessGranted by remember { mutableStateOf(BankNotificationAccess.isGranted(context)) }
+    var alertAccessGranted by remember {
+        mutableStateOf(BankNotificationAlertManager.canNotify(context))
+    }
     var enableAfterSettings by rememberSaveable { mutableStateOf(false) }
     var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
     var settingsUnavailable by rememberSaveable { mutableStateOf(false) }
+    var alertPermissionRequested by rememberSaveable { mutableStateOf(false) }
+    var consumedCandidateId by rememberSaveable { mutableStateOf<String?>(null) }
+    val alertPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> alertAccessGranted = granted }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         accessGranted = BankNotificationAccess.isGranted(context)
+        alertAccessGranted = BankNotificationAlertManager.canNotify(context)
         if (accessGranted && enableAfterSettings) {
             viewModel.setTrackingEnabled(true)
             enableAfterSettings = false
         } else if (!accessGranted && state.trackingEnabled) {
             viewModel.setTrackingEnabled(false)
+        }
+    }
+
+    LaunchedEffect(initialCandidateId, state.candidates) {
+        if (initialCandidateId != null &&
+            consumedCandidateId != initialCandidateId &&
+            state.candidates.any { it.id == initialCandidateId }
+        ) {
+            consumedCandidateId = initialCandidateId
+            viewModel.openCandidate(initialCandidateId, baseCurrency)
         }
     }
 
@@ -129,6 +156,7 @@ fun BankNotificationsScreen(
             item {
                 TrackingCard(
                     accessGranted = accessGranted,
+                    alertAccessGranted = alertAccessGranted,
                     trackingEnabled = state.trackingEnabled,
                     settingsUnavailable = settingsUnavailable,
                     onGrantAccess = {
@@ -141,8 +169,67 @@ fun BankNotificationsScreen(
                             settingsUnavailable = true
                         }
                     },
-                    onTrackingChanged = viewModel::setTrackingEnabled
+                    onTrackingChanged = viewModel::setTrackingEnabled,
+                    onGrantAlertAccess = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            !alertPermissionRequested
+                        ) {
+                            alertPermissionRequested = true
+                            alertPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        } else {
+                            try {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                )
+                            } catch (_: ActivityNotFoundException) {
+                                settingsUnavailable = true
+                            }
+                        }
+                    }
                 )
+            }
+
+            if (state.isSyncing) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Text(stringResource(R.string.syncing_bank_suggestions))
+                    }
+                }
+            } else if (
+                state.reviewError == BankNotificationReviewError.SUGGESTION_SYNC_FAILED &&
+                state.selectedCandidate == null
+            ) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                state.networkErrorMessage
+                                    ?: stringResource(R.string.bank_suggestion_sync_failed),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            OutlinedButton(
+                                onClick = viewModel::syncPending,
+                                modifier = Modifier.heightIn(min = 48.dp)
+                            ) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        }
+                    }
+                }
             }
 
             item {
@@ -230,10 +317,12 @@ fun BankNotificationsScreen(
 @Composable
 private fun TrackingCard(
     accessGranted: Boolean,
+    alertAccessGranted: Boolean,
     trackingEnabled: Boolean,
     settingsUnavailable: Boolean,
     onGrantAccess: () -> Unit,
-    onTrackingChanged: (Boolean) -> Unit
+    onTrackingChanged: (Boolean) -> Unit,
+    onGrantAlertAccess: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -279,6 +368,11 @@ private fun TrackingCard(
                 stringResource(R.string.bank_notification_privacy_explanation),
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                stringResource(R.string.bank_notification_pilot_sources),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (!accessGranted) {
                 Button(
                     onClick = onGrantAccess,
@@ -288,6 +382,25 @@ private fun TrackingCard(
                 ) {
                     Text(stringResource(R.string.grant_notification_access))
                 }
+            }
+            if (accessGranted && !alertAccessGranted) {
+                Text(
+                    stringResource(R.string.bank_notification_alert_access_detail),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedButton(
+                    onClick = onGrantAlertAccess,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                ) {
+                    Text(stringResource(R.string.allow_review_alerts))
+                }
+                Text(
+                    stringResource(R.string.review_alerts_denied),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             if (settingsUnavailable) {
                 Text(
@@ -495,7 +608,9 @@ private fun CandidateReviewDialog(
             Button(
                 onClick = onSave,
                 enabled = !state.isLoadingOptions &&
+                    !state.isSyncing &&
                     !state.isSubmitting &&
+                    candidate.suggestionId != null &&
                     state.reviewError != BankNotificationReviewError.CURRENCY_MISMATCH &&
                     state.reviewError != BankNotificationReviewError.OPTIONS_LOAD_FAILED
             ) {
@@ -574,6 +689,7 @@ private fun reviewErrorMessage(state: BankNotificationUiState): String? = when (
         state.baseCurrency
     )
     BankNotificationReviewError.OPTIONS_LOAD_FAILED,
+    BankNotificationReviewError.SUGGESTION_SYNC_FAILED,
     BankNotificationReviewError.SAVE_FAILED -> state.networkErrorMessage
         ?: stringResource(R.string.bank_notification_save_failed)
     null -> null

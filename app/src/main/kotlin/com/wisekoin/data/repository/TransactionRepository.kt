@@ -5,6 +5,7 @@ import com.wisekoin.data.model.PagedTransactionResponse
 import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.TransactionResponseDto
 import com.wisekoin.data.remote.TransactionApiService
+import java.util.UUID
 
 interface TransactionRepository {
     suspend fun getTransactions(
@@ -15,7 +16,10 @@ interface TransactionRepository {
     ): PagedTransactionResponse
 
     suspend fun getMonthlyStats(year: Int): List<MonthlyStatsDto>
-    suspend fun createTransaction(request: TransactionRequest): TransactionResponseDto
+    suspend fun createTransaction(
+        request: TransactionRequest,
+        idempotencyKey: String? = null
+    ): TransactionResponseDto
 }
 
 class NetworkTransactionRepository(
@@ -31,6 +35,13 @@ class NetworkTransactionRepository(
     override suspend fun getMonthlyStats(year: Int): List<MonthlyStatsDto> =
         api.getMonthlyStats(year)
 
-    override suspend fun createTransaction(request: TransactionRequest): TransactionResponseDto =
-        api.createTransaction(request)
+    override suspend fun createTransaction(
+        request: TransactionRequest,
+        idempotencyKey: String?
+    ): TransactionResponseDto {
+        val key = idempotencyKey
+            ?: request.aiExtractionId?.let { "ai-extraction:$it" }
+            ?: UUID.randomUUID().toString()
+        return api.createTransaction(key, request)
+    }
 }

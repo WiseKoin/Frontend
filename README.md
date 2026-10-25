@@ -77,9 +77,11 @@ Omit all four `WISEKOIN_RELEASE_*` values to produce an unsigned local R8 build 
 
 ### Bank-notification tracking
 
-Bank-notification tracking is opt-in and requires Android notification-listener access. WiseKoin filters notifications to recognized bank and e-wallet apps on the device, extracts a transaction candidate locally, and immediately discards the original notification text. Only the amount, currency, direction, source-app label, and timestamp enter an Android Keystore-encrypted, account-scoped review queue.
+Bank-notification tracking is opt-in and requires Android notification-listener access. The pilot uses explicit, versioned parsers for VCB Digibank, MB Bank, Techcombank Mobile, and MoMo rather than fuzzy app-name matching. WiseKoin extracts a transaction candidate locally and immediately discards the original notification text. Only the amount, currency, direction, allowlisted source, parser version, timestamp, hashed source reference, and backend suggestion ID enter an Android Keystore-encrypted, account-scoped review queue.
 
-Candidates are never created as transactions automatically. The user must confirm an owned wallet and category before the existing authenticated transaction API is called. Pending candidates expire after 14 days, the queue is capped at 100 items, duplicate notifications are ignored, and switching accounts or logging out clears and disables the queue. The encrypted queue is excluded from Android backup and device transfer.
+Candidates synchronize as pending backend suggestions but are never created as transactions automatically. The user must confirm an owned wallet and category before the existing authenticated transaction API is called with a stable idempotency key. Pending candidates expire after 14 days, the queue is capped at 100 items, duplicate notifications are ignored, and switching accounts or logging out clears and disables the queue. The encrypted queue is excluded from Android backup and device transfer.
+
+When notification permission is granted, a privacy-redacted local alert deep-links to the matching review dialog. Parser outcome counters are synchronized without notification content so the pilot can measure coverage, parse failures, duplicates, confirmations, and false-positive rejections.
 
 ### Money and time contract
 

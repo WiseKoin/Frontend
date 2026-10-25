@@ -26,6 +26,8 @@ class WiseKoinViewModelFactory(
         modelClass.isAssignableFrom(BankNotificationViewModel::class.java) ->
             BankNotificationViewModel(
                 container.bankNotificationStore,
+                container.bankNotificationSuggestionRepository,
+                container.bankNotificationSyncer,
                 container.walletRepository,
                 container.categoryRepository,
                 container.transactionRepository

@@ -53,7 +53,11 @@ sealed class Screen(val route: String) {
     object PasswordRecoveryOtp : Screen("password_recovery_otp")
     object PasswordRecoveryReset : Screen("password_recovery_reset")
     object Profile : Screen("profile")
-    object BankNotifications : Screen("bank_notifications")
+    object BankNotifications : Screen("bank_notifications?candidateId={candidateId}") {
+        const val destination = "bank_notifications"
+        fun createRoute(candidateId: String? = null): String =
+            candidateId?.let { "$destination?candidateId=$it" } ?: destination
+    }
     object AccountSecurity : Screen("account_security")
     object ChangePassword : Screen("change_password")
     object DeleteAccount : Screen("delete_account")
@@ -78,7 +82,11 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun WiseKoinApp(container: AppContainer) {
+fun WiseKoinApp(
+    container: AppContainer,
+    notificationCandidateId: String? = null,
+    onNotificationIntentConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
@@ -108,6 +116,17 @@ fun WiseKoinApp(container: AppContainer) {
             SessionStatus.GUEST -> container.bankNotificationStore.bindAccount(null)
             SessionStatus.RESOLVING,
             SessionStatus.ERROR -> Unit
+        }
+    }
+
+    LaunchedEffect(authUiState.sessionStatus, notificationCandidateId) {
+        if (authUiState.sessionStatus == SessionStatus.AUTHENTICATED &&
+            notificationCandidateId != null
+        ) {
+            navController.navigate(Screen.BankNotifications.createRoute(notificationCandidateId)) {
+                launchSingleTop = true
+            }
+            onNotificationIntentConsumed()
         }
     }
 
@@ -271,7 +290,7 @@ fun WiseKoinNavGraph(
                 onNotificationsClick = {
                     navController.navigate(
                         if (authUiState.isLoggedIn) {
-                            Screen.BankNotifications.route
+                            Screen.BankNotifications.destination
                         } else {
                             Screen.Login.route
                         }
@@ -296,13 +315,23 @@ fun WiseKoinNavGraph(
             )
         }
 
-        composable(Screen.BankNotifications.route) {
+        composable(
+            route = Screen.BankNotifications.route,
+            arguments = listOf(
+                navArgument("candidateId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val bankNotificationViewModel: BankNotificationViewModel = viewModel(
                 factory = viewModelFactory
             )
             BankNotificationsScreen(
                 viewModel = bankNotificationViewModel,
                 baseCurrency = authUiState.currentUser?.baseCurrency ?: "VND",
+                initialCandidateId = backStackEntry.arguments?.getString("candidateId"),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -361,7 +390,7 @@ fun WiseKoinNavGraph(
                 onNotificationsClick = {
                     navController.navigate(
                         if (authUiState.isLoggedIn) {
-                            Screen.BankNotifications.route
+                            Screen.BankNotifications.destination
                         } else {
                             Screen.Login.route
                         }

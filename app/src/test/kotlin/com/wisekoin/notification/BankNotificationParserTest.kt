@@ -68,6 +68,23 @@ class BankNotificationParserTest {
         assertEquals("2026-10-25T08:00:00", result.occurredAt)
     }
 
+    @Test
+    fun `parses deidentified Vietnamese increase and decrease corpus templates`() {
+        val expense = BankNotificationParser.parse(
+            content("TK ****1234 giảm 125.000 VND lúc 09:12. Nội dung: THANH TOAN CUA HANG."),
+            zone
+        )
+        val income = BankNotificationParser.parse(
+            content("TK ****1234 tăng 3.500.000 VND lúc 08:00. Nội dung: LUONG THANG 10."),
+            zone
+        )
+
+        assertEquals(BigDecimal("125000"), expense?.amount)
+        assertEquals(BankNotificationDirection.EXPENSE, expense?.direction)
+        assertEquals(BigDecimal("3500000"), income?.amount)
+        assertEquals(BankNotificationDirection.INCOME, income?.direction)
+    }
+
     private fun content(text: String) = BankNotificationContent(
         notificationKey = "notification-key",
         sourceApp = "Bank App",

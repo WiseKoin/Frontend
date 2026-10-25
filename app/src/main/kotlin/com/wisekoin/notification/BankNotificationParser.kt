@@ -25,8 +25,8 @@ object BankNotificationParser {
     )
     private val amountWords = listOf("amount", "transaction", "payment", "purchase", "withdraw", "giao dich", "thanh toan", "rut tien")
     private val balanceWords = listOf("balance", "available", "so du")
-    private val creditWords = listOf("credited", "credit", "received", "deposit", "incoming", "ghi co", "nhan", "cong tien", "chuyen den")
-    private val debitWords = listOf("debited", "debit", "spent", "purchase", "payment", "withdraw", "outgoing", "ghi no", "tru tien", "thanh toan", "rut tien", "chuyen di")
+    private val creditWords = listOf("credited", "credit", "received", "deposit", "incoming", "ghi co", "nhan", "cong tien", "chuyen den", "tang")
+    private val debitWords = listOf("debited", "debit", "spent", "purchase", "payment", "withdraw", "outgoing", "ghi no", "tru tien", "thanh toan", "rut tien", "chuyen di", "giam")
 
     fun parse(
         content: BankNotificationContent,

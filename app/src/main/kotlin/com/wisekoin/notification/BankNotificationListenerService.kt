@@ -1,9 +1,6 @@
 package com.wisekoin.notification
 
 import android.app.Notification
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.wisekoin.data.local.BankNotificationStoreProvider
@@ -17,9 +14,7 @@ class BankNotificationListenerService : NotificationListenerService() {
         val store = BankNotificationStoreProvider.get(applicationContext)
         if (!store.state.value.trackingEnabled) return
 
-        val applicationInfo = applicationInfo(notification.packageName) ?: return
-        val sourceLabel = packageManager.getApplicationLabel(applicationInfo).toString()
-        if (!BankSourceClassifier.isLikelyFinanceApp(notification.packageName, sourceLabel)) return
+        val parser = BankNotificationParserRegistry.parserFor(notification.packageName) ?: return
 
         val extras = notification.notification.extras
         val textParts = buildList {
@@ -31,27 +26,26 @@ class BankNotificationListenerService : NotificationListenerService() {
                 ?.map(CharSequence::toString)
                 ?.let(::addAll)
         }
-        val candidate = BankNotificationParser.parse(
+        val candidate = parser.parse(
             BankNotificationContent(
                 notificationKey = notification.key,
-                sourceApp = sourceLabel,
+                sourceApp = parser.descriptor.displayName,
                 postedAtEpochMillis = notification.postTime,
                 textParts = textParts
             )
-        ) ?: return
-
-        runCatching { store.add(candidate) }
-    }
-
-    private fun applicationInfo(packageName: String): ApplicationInfo? = runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getApplicationInfo(
-                packageName,
-                PackageManager.ApplicationInfoFlags.of(0)
+        )
+        runCatching {
+            val added = store.recordObservation(
+                sourceId = parser.descriptor.sourceId,
+                parserVersion = parser.descriptor.version,
+                candidate = candidate
             )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getApplicationInfo(packageName, 0)
+            if (added && candidate != null) {
+                BankNotificationAlertManager.show(applicationContext, candidate)
+                BankNotificationSyncManager.sync(applicationContext)
+            } else if (candidate == null) {
+                BankNotificationSyncManager.sync(applicationContext)
+            }
         }
-    }.getOrNull()
+    }
 }

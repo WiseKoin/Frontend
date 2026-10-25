@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class TransactionEntryUiState(
     val isSubmitting: Boolean = false,
@@ -30,6 +31,8 @@ class TransactionEntryViewModel(
     private val walletRepository: WalletRepository
 ) : ViewModel() {
     private val submissionGate = SubmissionGate()
+    private var transactionIdempotencyKey = UUID.randomUUID().toString()
+    private var pendingTransactionRequest: TransactionRequest? = null
     private val _uiState = MutableStateFlow(TransactionEntryUiState())
     val uiState: StateFlow<TransactionEntryUiState> = _uiState.asStateFlow()
 
@@ -63,9 +66,19 @@ class TransactionEntryViewModel(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
+        if (pendingTransactionRequest != request) {
+            transactionIdempotencyKey = UUID.randomUUID().toString()
+            pendingTransactionRequest = request
+        }
         submit(
-            action = { transactionRepository.createTransaction(request) },
-            onSuccess = { onSuccess() },
+            action = {
+                transactionRepository.createTransaction(request, transactionIdempotencyKey)
+            },
+            onSuccess = {
+                transactionIdempotencyKey = UUID.randomUUID().toString()
+                pendingTransactionRequest = null
+                onSuccess()
+            },
             onFailure = onFailure
         )
     }

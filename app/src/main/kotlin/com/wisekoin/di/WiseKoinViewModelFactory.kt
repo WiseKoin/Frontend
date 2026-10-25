@@ -7,6 +7,7 @@ import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.BankNotificationViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
+import com.wisekoin.viewmodel.FeedbackViewModel
 import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.PasswordRecoveryViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
@@ -36,6 +37,8 @@ class WiseKoinViewModelFactory(
             CategoryViewModel(container.categoryRepository)
         modelClass.isAssignableFrom(DebtViewModel::class.java) ->
             DebtViewModel(container.debtRepository)
+        modelClass.isAssignableFrom(FeedbackViewModel::class.java) ->
+            FeedbackViewModel(container.feedbackRepository)
         modelClass.isAssignableFrom(GoalViewModel::class.java) ->
             GoalViewModel(container.goalRepository)
         modelClass.isAssignableFrom(PasswordRecoveryViewModel::class.java) ->

@@ -10,6 +10,7 @@ import com.wisekoin.data.repository.BankNotificationSuggestionRepository
 import com.wisekoin.data.repository.AuthRepository
 import com.wisekoin.data.repository.CategoryRepository
 import com.wisekoin.data.repository.DebtRepository
+import com.wisekoin.data.repository.FeedbackRepository
 import com.wisekoin.data.repository.GoalRepository
 import com.wisekoin.data.repository.NetworkAccountSecurityRepository
 import com.wisekoin.data.repository.NetworkAuthRepository
@@ -21,6 +22,7 @@ import com.wisekoin.data.repository.NetworkReceiptRepository
 import com.wisekoin.data.repository.NetworkTransactionRepository
 import com.wisekoin.data.repository.NetworkWalletRepository
 import com.wisekoin.data.repository.ReceiptRepository
+import com.wisekoin.data.repository.SentryFeedbackRepository
 import com.wisekoin.data.repository.TransactionRepository
 import com.wisekoin.data.repository.WalletRepository
 import com.wisekoin.notification.BankNotificationSyncer
@@ -56,6 +58,7 @@ class AppContainer(context: Context) {
     )
     val categoryRepository: CategoryRepository = NetworkCategoryRepository(client.categoryApi)
     val debtRepository: DebtRepository = NetworkDebtRepository(client.debtApi)
+    val feedbackRepository: FeedbackRepository = SentryFeedbackRepository()
     val goalRepository: GoalRepository = NetworkGoalRepository(client.goalApi)
     val receiptRepository: ReceiptRepository = NetworkReceiptRepository(client.receiptApi)
     val transactionRepository: TransactionRepository =

@@ -59,6 +59,7 @@ fun ProfileScreen(
     onLoginClick: () -> Unit = {},
     onAccountSecurityClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
+    onHelpCenterClick: () -> Unit = {},
     onTabSelected: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -366,10 +367,10 @@ fun ProfileScreen(
             }
 
             PreferenceItem(
-                title = "Help Center",
+                title = stringResource(R.string.help_center),
                 icon = Icons.Default.HelpCenter,
                 iconTint = WiseKoinTheme.colors.Outline,
-                onClick = { Toast.makeText(context, "Help Center", Toast.LENGTH_SHORT).show() }
+                onClick = onHelpCenterClick
             )
         }
 

@@ -43,6 +43,7 @@ import com.wisekoin.R
 
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
+import com.wisekoin.viewmodel.FeedbackViewModel
 import com.wisekoin.viewmodel.TransactionEntryViewModel
 import com.wisekoin.viewmodel.PasswordRecoveryViewModel
 
@@ -53,6 +54,7 @@ sealed class Screen(val route: String) {
     object PasswordRecoveryOtp : Screen("password_recovery_otp")
     object PasswordRecoveryReset : Screen("password_recovery_reset")
     object Profile : Screen("profile")
+    object HelpCenter : Screen("help_center")
     object BankNotifications : Screen("bank_notifications?candidateId={candidateId}") {
         const val destination = "bank_notifications"
         fun createRoute(candidateId: String? = null): String =
@@ -296,6 +298,9 @@ fun WiseKoinNavGraph(
                         }
                     )
                 },
+                onHelpCenterClick = {
+                    navController.navigate(Screen.HelpCenter.route)
+                },
                 onTabSelected = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.Overview.route) { saveState = true }
@@ -303,6 +308,18 @@ fun WiseKoinNavGraph(
                         restoreState = true
                     }
                 }
+            )
+        }
+
+        composable(Screen.HelpCenter.route) {
+            val feedbackViewModel: FeedbackViewModel = viewModel(
+                factory = viewModelFactory
+            )
+            HelpCenterScreen(
+                viewModel = feedbackViewModel,
+                defaultName = authUiState.currentUser?.username,
+                defaultEmail = authUiState.currentUser?.email,
+                onBack = { navController.popBackStack() }
             )
         }
 

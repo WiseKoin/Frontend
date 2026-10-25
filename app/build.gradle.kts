@@ -57,6 +57,8 @@ val releaseApiBaseUrl = when {
 val configuredSentryDsn = providers.gradleProperty("SENTRY_DSN")
     .orElse(providers.environmentVariable("SENTRY_DSN"))
     .orNull
+    ?.trim()
+    ?.takeIf(String::isNotEmpty)
 val sentryDsn = when {
     configuredSentryDsn != null ->
         requireValidSentryDsn(configuredSentryDsn)
@@ -67,6 +69,8 @@ val sentryDsn = when {
 val sentryAuthToken = providers.gradleProperty("SENTRY_AUTH_TOKEN")
     .orElse(providers.environmentVariable("SENTRY_AUTH_TOKEN"))
     .orNull
+    ?.trim()
+    ?.takeIf(String::isNotEmpty)
 
 data class ReleaseSigningValues(
     val storeFile: String?,

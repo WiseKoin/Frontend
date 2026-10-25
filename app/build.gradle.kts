@@ -1,8 +1,10 @@
+import io.sentry.android.gradle.extensions.InstrumentationFeature
 import java.net.URI
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.sentry.android.gradle)
 }
 
 fun String.asBuildConfigString(): String =
@@ -13,6 +15,21 @@ fun requireValidApiBaseUrl(name: String, value: String): String {
         .getOrElse { throw GradleException("$name must be a valid absolute URL.", it) }
     if (uri.scheme != "https" || uri.host.isNullOrBlank() || !value.endsWith('/')) {
         throw GradleException("$name must be an HTTPS URL ending with '/'.")
+    }
+    return value
+}
+
+fun requireValidSentryDsn(value: String): String {
+    val uri = runCatching { URI(value) }
+        .getOrElse { throw GradleException("SENTRY_DSN must be a valid absolute URL.", it) }
+    if (
+        uri.scheme != "https" ||
+        uri.host.isNullOrBlank() ||
+        uri.userInfo.isNullOrBlank() ||
+        uri.path.isNullOrBlank() ||
+        uri.path == "/"
+    ) {
+        throw GradleException("SENTRY_DSN must be a valid HTTPS Sentry project DSN.")
     }
     return value
 }
@@ -36,6 +53,20 @@ val releaseApiBaseUrl = when {
         )
     else -> "https://invalid.local/"
 }
+
+val configuredSentryDsn = providers.gradleProperty("SENTRY_DSN")
+    .orElse(providers.environmentVariable("SENTRY_DSN"))
+    .orNull
+val sentryDsn = when {
+    configuredSentryDsn != null ->
+        requireValidSentryDsn(configuredSentryDsn)
+    releaseBuildRequested ->
+        throw GradleException("SENTRY_DSN is required for release builds.")
+    else -> ""
+}
+val sentryAuthToken = providers.gradleProperty("SENTRY_AUTH_TOKEN")
+    .orElse(providers.environmentVariable("SENTRY_AUTH_TOKEN"))
+    .orNull
 
 data class ReleaseSigningValues(
     val storeFile: String?,
@@ -80,6 +111,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["sentryDsn"] = sentryDsn
     }
 
     signingConfigs {
@@ -96,9 +128,13 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", debugApiBaseUrl.asBuildConfigString())
+            manifestPlaceholders["sentryEnvironment"] = "development"
+            manifestPlaceholders["sentryTracesSampleRate"] = "1.0"
         }
         release {
             buildConfigField("String", "API_BASE_URL", releaseApiBaseUrl.asBuildConfigString())
+            manifestPlaceholders["sentryEnvironment"] = "production"
+            manifestPlaceholders["sentryTracesSampleRate"] = "0.1"
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")
@@ -117,6 +153,35 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+}
+
+sentry {
+    org = "thien-phuc-tran"
+    projectName = "wisekoin-android"
+    authToken = sentryAuthToken
+
+    includeProguardMapping = true
+    autoUploadProguardMapping = sentryAuthToken != null
+    includeSourceContext = sentryAuthToken != null
+    includeDependenciesReport = false
+    telemetry = false
+
+    tracingInstrumentation {
+        enabled = true
+        features = setOf(
+            InstrumentationFeature.FILE_IO,
+            InstrumentationFeature.OKHTTP,
+            InstrumentationFeature.COMPOSE
+        )
+        logcat {
+            enabled = false
+        }
+    }
+
+    autoInstallation {
+        enabled = true
+        sentryVersion = libs.versions.sentry.get()
     }
 }
 

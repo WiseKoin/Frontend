@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".WiseKoinApplication"
         android:usesCleartextTraffic="false"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -18,6 +19,57 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WiseKoin">
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.dsn"
+            android:value="${sentryDsn}" />
+        <meta-data
+            android:name="io.sentry.environment"
+            android:value="${sentryEnvironment}" />
+        <meta-data
+            android:name="io.sentry.traces.sample-rate"
+            android:value="${sentryTracesSampleRate}" />
+
+        <!-- WiseKoin handles financial data, so automatic request/user data collection is disabled. -->
+        <meta-data
+            android:name="io.sentry.data-collection.user-info"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.data-collection.cookies.mode"
+            android:value="off" />
+        <meta-data
+            android:name="io.sentry.data-collection.http-headers.request.mode"
+            android:value="off" />
+        <meta-data
+            android:name="io.sentry.data-collection.http-headers.response.mode"
+            android:value="off" />
+        <meta-data
+            android:name="io.sentry.data-collection.http-bodies"
+            android:value="" />
+        <meta-data
+            android:name="io.sentry.data-collection.url-query-params.mode"
+            android:value="off" />
+        <meta-data
+            android:name="io.sentry.data-collection.graphql.document"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.data-collection.graphql.variables"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.data-collection.file-paths"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.additional-context"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.attach-screenshot"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.attach-view-hierarchy"
+            android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -21,6 +21,7 @@ Jetpack Compose mobile application for the WiseKoin financial management platfor
 - **Networking:** Retrofit 2.11.0 + OkHttp 4.12.0
 - **Image Loading:** Coil 2.7.0
 - **Camera:** CameraX 1.3.4
+- **Observability:** Sentry Android error monitoring and tracing
 - **Local Storage:** Android Keystore-backed encrypted session storage (TokenManager)
 - **Build Tool:** Gradle 9.2.1 (AGP 9.2.1)
 
@@ -62,6 +63,33 @@ $env:WISEKOIN_RELEASE_KEY_PASSWORD = "..."
 ```
 
 Omit all four `WISEKOIN_RELEASE_*` values to produce an unsigned local R8 build for verification. Supplying only some signing values fails fast.
+
+## Sentry monitoring
+
+The Android client reports to the separate `wisekoin-android` Sentry project. The SDK
+is disabled when `SENTRY_DSN` is unset. Debug builds sample all traces for local
+verification; release builds use a 10% trace sample rate and require `SENTRY_DSN`.
+
+Automatic collection of user identity and IP enrichment, cookies, request and response
+headers, HTTP bodies, query parameters, GraphQL data, file paths, additional dynamic
+device context, and Logcat breadcrumbs is disabled because WiseKoin handles financial
+data. Screenshots, view hierarchy attachments, profiling, logs, and session replay are
+not enabled.
+
+Distributed tracing headers are restricted to the configured WiseKoin API base URL, so
+they are not attached to unrelated third-party requests.
+
+Release builds upload their R8 mapping and Kotlin source context only when
+`SENTRY_AUTH_TOKEN` is available. Configure these GitHub Actions repository secrets:
+
+```text
+SENTRY_DSN=<wisekoin-android project DSN>
+SENTRY_AUTH_TOKEN=<Sentry org/project release upload token>
+```
+
+The authentication token is build-time only and must never be embedded in the APK or
+committed. Local debug verification can set `SENTRY_DSN` as an environment variable or
+Gradle property.
 
 ### API Services
 

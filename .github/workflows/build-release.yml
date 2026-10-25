@@ -79,6 +79,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           API_BASE_URL: ${{ secrets.WISEKOIN_API_BASE_URL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           missing=()
           [[ -z "${KEYSTORE_BASE64}" ]] && missing+=(ANDROID_KEYSTORE_BASE64)
@@ -86,6 +88,8 @@ jobs:
           [[ -z "${KEY_ALIAS}" ]] && missing+=(ANDROID_KEY_ALIAS)
           [[ -z "${KEY_PASSWORD}" ]] && missing+=(ANDROID_KEY_PASSWORD)
           [[ -z "${API_BASE_URL}" ]] && missing+=(WISEKOIN_API_BASE_URL)
+          [[ -z "${SENTRY_DSN}" ]] && missing+=(SENTRY_DSN)
+          [[ -z "${SENTRY_AUTH_TOKEN}" ]] && missing+=(SENTRY_AUTH_TOKEN)
 
           if (( ${#missing[@]} > 0 )); then
             echo "Missing required repository secrets: ${missing[*]}" >&2
@@ -105,6 +109,8 @@ jobs:
           WISEKOIN_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           WISEKOIN_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           WISEKOIN_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: >-
           ./gradlew --no-daemon --stacktrace
           lintDebug testDebugUnitTest assembleRelease bundleRelease

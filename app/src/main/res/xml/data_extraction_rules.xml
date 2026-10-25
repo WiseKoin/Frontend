@@ -6,8 +6,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="wisekoin_prefs.xml" />
+        <exclude domain="sharedpref" path="bank_notification_candidates.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="wisekoin_prefs.xml" />
+        <exclude domain="sharedpref" path="bank_notification_candidates.xml" />
     </device-transfer>
 </data-extraction-rules>

@@ -58,6 +58,7 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit,
     onLoginClick: () -> Unit = {},
     onAccountSecurityClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
     onTabSelected: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -82,7 +83,7 @@ fun ProfileScreen(
             .padding(all = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AppTopBar()
+        AppTopBar(onNotificationClick = onNotificationsClick)
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -354,16 +355,15 @@ fun ProfileScreen(
                     onClick = { showCurrencyDialog = true }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                PreferenceItem(
+                    title = stringResource(R.string.bank_notification_tracking),
+                    icon = Icons.Default.NotificationsActive,
+                    iconTint = Color(0xFF666000),
+                    onClick = onNotificationsClick
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            PreferenceItem(
-                title = "Notifications",
-                icon = Icons.Default.NotificationsActive,
-                iconTint = Color(0xFF666000),
-                onClick = { Toast.makeText(context, "Cài đặt thông báo", Toast.LENGTH_SHORT).show() }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             PreferenceItem(
                 title = "Help Center",

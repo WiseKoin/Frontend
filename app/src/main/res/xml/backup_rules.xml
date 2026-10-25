@@ -7,4 +7,5 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="wisekoin_prefs.xml" />
+    <exclude domain="sharedpref" path="bank_notification_candidates.xml" />
 </full-backup-content>

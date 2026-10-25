@@ -3,6 +3,7 @@ package com.wisekoin.di
 import android.content.Context
 import com.wisekoin.data.local.SessionTokenStore
 import com.wisekoin.data.local.TokenManager
+import com.wisekoin.data.local.BankNotificationStoreProvider
 import com.wisekoin.data.remote.RetrofitClient
 import com.wisekoin.data.repository.AccountSecurityRepository
 import com.wisekoin.data.repository.AuthRepository
@@ -37,6 +38,7 @@ class SessionExpiryNotifier {
 class AppContainer(context: Context) {
     val tokenStore: SessionTokenStore = TokenManager(context.applicationContext)
     val sessionExpiryNotifier = SessionExpiryNotifier()
+    val bankNotificationStore = BankNotificationStoreProvider.get(context.applicationContext)
 
     private val client = RetrofitClient(tokenStore, sessionExpiryNotifier::notifyExpired)
 

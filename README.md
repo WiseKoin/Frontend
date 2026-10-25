@@ -41,6 +41,7 @@ Jetpack Compose mobile application for the WiseKoin financial management platfor
 | Confirm Receipt        | `confirm_receipt`      | Review and confirm AI-extracted receipt data     |
 | Voice Recording        | `voice_recording`      | Voice input for transaction entry                |
 | Profile                | `profile`              | User profile and logout                          |
+| Bank Notifications     | `bank_notifications`   | Review transactions detected from finance-app notifications |
 
 ## API Integration
 
@@ -73,6 +74,12 @@ Omit all four `WISEKOIN_RELEASE_*` values to produce an unsigned local R8 build 
 - `GoalApiService` — CRUD goals, fund goals
 - `ReceiptApiService` — upload receipt image for AI extraction
 - `RetrofitClient` — authenticated client with automatic single-retry token refresh
+
+### Bank-notification tracking
+
+Bank-notification tracking is opt-in and requires Android notification-listener access. WiseKoin filters notifications to recognized bank and e-wallet apps on the device, extracts a transaction candidate locally, and immediately discards the original notification text. Only the amount, currency, direction, source-app label, and timestamp enter an Android Keystore-encrypted, account-scoped review queue.
+
+Candidates are never created as transactions automatically. The user must confirm an owned wallet and category before the existing authenticated transaction API is called. Pending candidates expire after 14 days, the queue is capped at 100 items, duplicate notifications are ignored, and switching accounts or logging out clears and disables the queue. The encrypted queue is excluded from Android backup and device transfer.
 
 ### Money and time contract
 

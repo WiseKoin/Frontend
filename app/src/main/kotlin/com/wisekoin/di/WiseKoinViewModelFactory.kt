@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.wisekoin.viewmodel.AccountSecurityViewModel
 import com.wisekoin.viewmodel.AuthViewModel
+import com.wisekoin.viewmodel.BankNotificationViewModel
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.DebtViewModel
 import com.wisekoin.viewmodel.GoalViewModel
@@ -22,6 +23,13 @@ class WiseKoinViewModelFactory(
             AuthViewModel(container.authRepository, container.tokenStore)
         modelClass.isAssignableFrom(AccountSecurityViewModel::class.java) ->
             AccountSecurityViewModel(container.accountSecurityRepository)
+        modelClass.isAssignableFrom(BankNotificationViewModel::class.java) ->
+            BankNotificationViewModel(
+                container.bankNotificationStore,
+                container.walletRepository,
+                container.categoryRepository,
+                container.transactionRepository
+            )
         modelClass.isAssignableFrom(CategoryViewModel::class.java) ->
             CategoryViewModel(container.categoryRepository)
         modelClass.isAssignableFrom(DebtViewModel::class.java) ->

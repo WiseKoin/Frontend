@@ -41,6 +41,7 @@ fun OverviewScreen(
     walletViewModel: WalletViewModel,
     onNavigateToAddTransaction: () -> Unit,
     onSeeAllTransactions: () -> Unit,
+    onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
     val state by walletViewModel.uiState.collectAsStateWithLifecycle()
@@ -94,7 +95,7 @@ fun OverviewScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 AppTopBar(
-                    onNotificationClick = {},
+                    onNotificationClick = onNotificationsClick,
                     onProfileClick = onProfileClick,
                 )
             }

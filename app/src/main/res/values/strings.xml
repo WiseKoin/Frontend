@@ -276,4 +276,26 @@
     <string name="initial_balance_vnd_label">Initial balance (VND)</string>
     <string name="save_transaction">Save transaction</string>
     <string name="open">Open</string>
+    <string name="bank_notification_listener_label">WiseKoin bank transaction tracking</string>
+    <string name="bank_notification_tracking">Bank notification tracking</string>
+    <string name="notification_access_granted">Notification access granted</string>
+    <string name="notification_access_required">Notification access is required</string>
+    <string name="bank_notification_privacy_explanation">WiseKoin checks notifications from finance apps on this device. It keeps only the amount, direction, source app, and time—never the original notification text. Nothing is saved as a transaction until you review it.</string>
+    <string name="grant_notification_access">Grant notification access</string>
+    <string name="notification_settings_unavailable">Notification access settings could not be opened on this device.</string>
+    <string name="bank_notification_review_queue">Transactions to review</string>
+    <string name="bank_notification_queue_privacy">Encrypted on this device and automatically removed after 14 days.</string>
+    <string name="clear_all">Clear all</string>
+    <string name="no_bank_notifications">No transactions to review</string>
+    <string name="no_bank_notifications_detail">When tracking is on, recognized bank and e-wallet notifications will appear here.</string>
+    <string name="discard">Discard</string>
+    <string name="review">Review</string>
+    <string name="clear_bank_notifications_title">Clear review queue?</string>
+    <string name="clear_bank_notifications_message">This removes every pending bank-notification suggestion from this device. Saved transactions are not affected.</string>
+    <string name="review_bank_transaction">Review transaction</string>
+    <string name="bank_notification_review_explanation">Confirm the amount, wallet, and category before saving. The source notification is not retained.</string>
+    <string name="bank_notification_currency_mismatch">This notification uses %1$s, but your account uses %2$s. Add this transaction manually after converting the amount.</string>
+    <string name="bank_notification_save_failed">We couldn’t save this transaction. Check your connection and try again.</string>
+    <string name="bank_notification_saved">Transaction saved.</string>
+    <string name="bank_notification_direction_time">%1$s · %2$s</string>
 </resources>

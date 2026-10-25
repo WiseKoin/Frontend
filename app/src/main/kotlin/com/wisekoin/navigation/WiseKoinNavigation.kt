@@ -33,6 +33,7 @@ import com.wisekoin.ui.components.WiseKoinBottomBar
 import com.wisekoin.ui.screens.*
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.AccountSecurityViewModel
+import com.wisekoin.viewmodel.BankNotificationViewModel
 import com.wisekoin.viewmodel.GoalViewModel
 import com.wisekoin.viewmodel.ReceiptViewModel
 import com.wisekoin.viewmodel.VoiceViewModel
@@ -52,6 +53,7 @@ sealed class Screen(val route: String) {
     object PasswordRecoveryOtp : Screen("password_recovery_otp")
     object PasswordRecoveryReset : Screen("password_recovery_reset")
     object Profile : Screen("profile")
+    object BankNotifications : Screen("bank_notifications")
     object AccountSecurity : Screen("account_security")
     object ChangePassword : Screen("change_password")
     object DeleteAccount : Screen("delete_account")
@@ -95,6 +97,17 @@ fun WiseKoinApp(container: AppContainer) {
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
+        }
+    }
+
+    LaunchedEffect(authUiState.sessionStatus, authUiState.currentUser?.id) {
+        when (authUiState.sessionStatus) {
+            SessionStatus.AUTHENTICATED -> container.bankNotificationStore.bindAccount(
+                "user:${authUiState.currentUser?.id ?: return@LaunchedEffect}"
+            )
+            SessionStatus.GUEST -> container.bankNotificationStore.bindAccount(null)
+            SessionStatus.RESOLVING,
+            SessionStatus.ERROR -> Unit
         }
     }
 
@@ -255,6 +268,15 @@ fun WiseKoinNavGraph(
                 onAccountSecurityClick = {
                     navController.navigate(Screen.AccountSecurity.route)
                 },
+                onNotificationsClick = {
+                    navController.navigate(
+                        if (authUiState.isLoggedIn) {
+                            Screen.BankNotifications.route
+                        } else {
+                            Screen.Login.route
+                        }
+                    )
+                },
                 onTabSelected = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.Overview.route) { saveState = true }
@@ -271,6 +293,17 @@ fun WiseKoinNavGraph(
                 onBack = { navController.popBackStack() },
                 onChangePassword = { navController.navigate(Screen.ChangePassword.route) },
                 onDeleteAccount = { navController.navigate(Screen.DeleteAccount.route) }
+            )
+        }
+
+        composable(Screen.BankNotifications.route) {
+            val bankNotificationViewModel: BankNotificationViewModel = viewModel(
+                factory = viewModelFactory
+            )
+            BankNotificationsScreen(
+                viewModel = bankNotificationViewModel,
+                baseCurrency = authUiState.currentUser?.baseCurrency ?: "VND",
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -323,6 +356,15 @@ fun WiseKoinNavGraph(
                 onSeeAllTransactions = {
                     navController.navigate(
                         if (authUiState.isLoggedIn) Screen.Expenses.route else Screen.Login.route
+                    )
+                },
+                onNotificationsClick = {
+                    navController.navigate(
+                        if (authUiState.isLoggedIn) {
+                            Screen.BankNotifications.route
+                        } else {
+                            Screen.Login.route
+                        }
                     )
                 },
                 onProfileClick = {

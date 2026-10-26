@@ -36,7 +36,8 @@ import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.formatAmount
-import com.wisekoin.ui.components.formatVND
+import com.wisekoin.ui.components.formatCurrency
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
 import com.wisekoin.viewmodel.CategoryViewModel
@@ -56,6 +57,7 @@ fun DebtManagementScreen(
     initialType: String? = null,
     onAddDebt: (String) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val state by debtViewModel.uiState.collectAsStateWithLifecycle()
     val categoryState by categoryViewModel.uiState.collectAsStateWithLifecycle()
     val walletState by walletViewModel.uiState.collectAsStateWithLifecycle()
@@ -152,7 +154,7 @@ fun DebtManagementScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            total.formatVND(),
+                            total.formatCurrency(currencyCode),
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Black,
                             color = if (isLentTab) MintDark else PrimaryRed

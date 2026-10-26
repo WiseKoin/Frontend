@@ -44,6 +44,7 @@ fun OverviewScreen(
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val state by walletViewModel.uiState.collectAsStateWithLifecycle()
     var showCreateWalletDialog by rememberSaveable { mutableStateOf(false) }
     var selectedWallet by remember { mutableStateOf<WalletResponseDto?>(null) }
@@ -55,16 +56,16 @@ fun OverviewScreen(
     }
 
     val displayBalance = if (isLoggedIn)
-        state.totalBalance.formatVND()
-    else "0 VND"
+        state.totalBalance.formatCurrency(currencyCode)
+    else BigDecimal.ZERO.formatCurrency(currencyCode)
 
     val displayIncome = if (isLoggedIn)
-        state.currentMonthIncome.formatVND()
-    else "0 VND"
+        state.currentMonthIncome.formatCurrency(currencyCode)
+    else BigDecimal.ZERO.formatCurrency(currencyCode)
 
     val displayExpense = if (isLoggedIn)
-        state.currentMonthExpense.formatVND()
-    else "0 VND"
+        state.currentMonthExpense.formatCurrency(currencyCode)
+    else BigDecimal.ZERO.formatCurrency(currencyCode)
 
     val displayTransactions = if (isLoggedIn) {
         state.recentTransactions.map { tx ->
@@ -77,9 +78,9 @@ fun OverviewScreen(
                 title = tx.note ?: tx.goal?.name ?: categoryLabel,
                 category = categoryLabel,
                 amount = if (isExpense) {
-                    "-${tx.amount.formatStringVND()}"
+                    "-${tx.amount.formatCurrencyValue(currencyCode)} $currencyCode"
                 } else {
-                    "+${tx.amount.formatStringVND()}"
+                    "+${tx.amount.formatCurrencyValue(currencyCode)} $currencyCode"
                 },
                 isExpense = isExpense,
                 time = formatTransactionTime(tx.transactionDate),
@@ -210,6 +211,7 @@ private fun WalletOverviewSection(
     onAddWallet: () -> Unit,
     onWalletClick: (WalletResponseDto) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -288,7 +290,7 @@ private fun WalletOverviewSection(
                                 )
                             }
                             Text(
-                                wallet.balance.formatVND(),
+                                wallet.balance.formatCurrency(currencyCode),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextDark,
@@ -312,6 +314,7 @@ private fun WalletDetailsDialog(
     onDismiss: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var confirmDelete by rememberSaveable(wallet.id) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { if (!isDeleting) onDismiss() },
@@ -319,7 +322,10 @@ private fun WalletDetailsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(wallet.name, style = MaterialTheme.typography.titleLarge, color = TextDark)
-                Text(wallet.balance.formatVND(), style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    wallet.balance.formatCurrency(currencyCode),
+                    style = MaterialTheme.typography.headlineSmall
+                )
                 Text(stringResource(walletTypeLabel(wallet.type)), color = TextLight)
                 errorMessage?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
@@ -369,6 +375,7 @@ private fun OverviewCreateWalletDialog(
     onDismiss: () -> Unit,
     onCreate: (String, String, BigDecimal) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var name by rememberSaveable { mutableStateOf("") }
     var selectedType by rememberSaveable { mutableStateOf("CASH") }
     var initialBalance by rememberSaveable { mutableStateOf("") }
@@ -429,14 +436,22 @@ private fun OverviewCreateWalletDialog(
                 OutlinedTextField(
                     value = initialBalance,
                     onValueChange = {
-                        initialBalance = formatAmount(it)
+                        initialBalance = formatAmount(it, currencyCode)
                         validationError = null
                     },
-                    label = { Text(stringResource(R.string.initial_balance_vnd)) },
+                    label = { Text(stringResource(R.string.initial_balance_vnd, currencyCode)) },
                     singleLine = true,
                     enabled = !isSubmitting,
                     isError = validationError == R.string.invalid_initial_balance,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (
+                            com.wisekoin.util.MoneyFormatter.currencyScale(currencyCode) == 0
+                        ) {
+                            KeyboardType.Number
+                        } else {
+                            KeyboardType.Decimal
+                        }
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 validationError?.let {
@@ -454,7 +469,10 @@ private fun OverviewCreateWalletDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val balance = com.wisekoin.util.MoneyFormatter.parse(initialBalance)
+                    val balance = com.wisekoin.util.MoneyFormatter.parse(
+                        initialBalance,
+                        currencyCode
+                    )
                         ?: BigDecimal.ZERO.takeIf { initialBalance.isBlank() }
                     when {
                         name.isBlank() -> validationError = R.string.wallet_name_required

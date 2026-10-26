@@ -45,6 +45,7 @@ import com.wisekoin.data.model.TransactionRequest
 import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.NetworkErrorBanner
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.components.formatAmount
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
@@ -75,6 +76,7 @@ fun AddTransactionScreen(
     categoryViewModel: CategoryViewModel,
     transactionEntryViewModel: TransactionEntryViewModel
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var selectedType by remember(initialType) {
         mutableStateOf(initialType.takeIf { it in listOf("Expense", "Income", "Lend", "Borrow") } ?: "Expense")
     }
@@ -286,7 +288,7 @@ fun AddTransactionScreen(
                 } else if (selectedType in listOf("Expense", "Income") && selectedCategoryId == null) {
                     Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
                 } else if (selectedType !in listOf("Expense", "Income")) {
-                    val parsedAmount = MoneyFormatter.parse(amount)
+                    val parsedAmount = MoneyFormatter.parse(amount, currencyCode)
                     if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                         Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
                     } else if (counterpartName.isBlank()) {
@@ -311,7 +313,7 @@ fun AddTransactionScreen(
                         )
                     }
                 } else {
-                    val parsedAmount = MoneyFormatter.parse(amount)
+                    val parsedAmount = MoneyFormatter.parse(amount, currencyCode)
                     if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                         Toast.makeText(context, "Please enter a valid amount.", Toast.LENGTH_SHORT).show()
                     } else {

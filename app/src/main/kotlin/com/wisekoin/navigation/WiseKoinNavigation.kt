@@ -10,6 +10,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
@@ -30,7 +31,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wisekoin.ui.components.WiseKoinBottomBar
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.screens.*
+import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.AuthViewModel
 import com.wisekoin.viewmodel.AccountSecurityViewModel
 import com.wisekoin.viewmodel.BankNotificationViewModel
@@ -153,33 +156,40 @@ fun WiseKoinApp(
         return
     }
 
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                WiseKoinBottomBar(
-                    currentRoute = currentRoute.substringBefore('?'),
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(Screen.Overview.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-            }
-        }
-    ) { padding ->
-        WiseKoinNavGraph(
-            navController = navController,
-            authViewModel = authViewModel,
-            viewModelFactory = viewModelFactory,
-            startDestination = if (authUiState.sessionExpiryVersion > 0) {
-                Screen.Login.route
-            } else {
-                Screen.Overview.route
-            },
-            modifier = Modifier.padding(padding)
+    CompositionLocalProvider(
+        LocalCurrencyCode provides (
+            authUiState.currentUser?.baseCurrency
+                ?: MoneyFormatter.DEFAULT_CURRENCY_CODE
         )
+    ) {
+        Scaffold(
+            bottomBar = {
+                if (showBottomBar) {
+                    WiseKoinBottomBar(
+                        currentRoute = currentRoute.substringBefore('?'),
+                        onNavigate = { route ->
+                            navController.navigate(route) {
+                                popUpTo(Screen.Overview.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        ) { padding ->
+            WiseKoinNavGraph(
+                navController = navController,
+                authViewModel = authViewModel,
+                viewModelFactory = viewModelFactory,
+                startDestination = if (authUiState.sessionExpiryVersion > 0) {
+                    Screen.Login.route
+                } else {
+                    Screen.Overview.route
+                },
+                modifier = Modifier.padding(padding)
+            )
+        }
     }
 }
 

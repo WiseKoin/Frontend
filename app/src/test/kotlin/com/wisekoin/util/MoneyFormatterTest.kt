@@ -36,4 +36,11 @@ class MoneyFormatterTest {
     fun `formatting preserves supported fractional precision`() {
         assertEquals("12,345.67", MoneyFormatter.format(BigDecimal("12345.67"), "USD", Locale.US, false))
     }
+
+    @Test
+    fun `input formatting follows the selected currency scale`() {
+        assertEquals("1,234", MoneyFormatter.formatInput("1234", "VND", Locale.US))
+        assertEquals("1,234.56", MoneyFormatter.formatInput("1234.567", "USD", Locale.US))
+        assertEquals("", MoneyFormatter.formatInput("", "USD", Locale.US))
+    }
 }

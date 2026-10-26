@@ -10,7 +10,7 @@
     <string name="goal_funding_default_note">Fund goal - %1$s</string>
     <string name="contribution_success">Funds added to your goal.</string>
     <string name="goal_progress_percent">%1$d%% complete</string>
-    <string name="contribution_amount_label">Contribution amount (VND)</string>
+    <string name="contribution_amount_label">Contribution amount (%1$s)</string>
     <string name="use_remaining_amount">Use remaining: %1$s</string>
     <string name="wallet">Wallet</string>
     <string name="no_wallet_available">No wallet available</string>
@@ -28,7 +28,7 @@
     <string name="create_wallet_title">Create new wallet</string>
     <string name="wallet_name">Wallet name</string>
     <string name="wallet_type">Wallet type</string>
-    <string name="initial_balance_vnd">Initial balance (VND)</string>
+    <string name="initial_balance_vnd">Initial balance (%1$s)</string>
     <string name="wallet_name_required">Enter a wallet name.</string>
     <string name="invalid_initial_balance">Enter a valid balance of zero or more.</string>
     <string name="wallet_creation_failed">We couldn’t create this wallet. Check your connection and try again.</string>
@@ -46,7 +46,7 @@
     <string name="retry">Retry</string>
     <string name="repay_debt">Record debt repayment</string>
     <string name="remaining_debt">Remaining: %1$s</string>
-    <string name="amount_vnd">Amount (VND)</string>
+    <string name="amount_vnd">Amount (%1$s)</string>
     <string name="category">Category</string>
     <string name="select_wallet">Select a wallet</string>
     <string name="select_category">Select a category</string>
@@ -67,7 +67,7 @@
     <string name="delete_debt">Delete debt</string>
     <string name="delete_debt_confirmation">Delete the debt with %1$s? Debts with repayment transactions cannot be deleted.</string>
     <string name="counterpart_name">Person or organization</string>
-    <string name="total_amount_vnd">Total amount (VND)</string>
+    <string name="total_amount_vnd">Total amount (%1$s)</string>
     <string name="due_date_optional">Due date (YYYY-MM-DD, optional)</string>
     <string name="save_changes">Save changes</string>
     <string name="debt_name_required">Enter a person or organization.</string>
@@ -263,7 +263,7 @@
     <string name="create_savings_goal">Create savings goal</string>
     <string name="goal_title">Goal title</string>
     <string name="goal_title_example">e.g. New laptop</string>
-    <string name="target_amount_vnd">Target amount (VND)</string>
+    <string name="target_amount_vnd">Target amount (%1$s)</string>
     <string name="target_amount_example">e.g. 20000000</string>
     <string name="deadline">Deadline</string>
     <string name="counterparty_name">Counterparty name</string>
@@ -273,7 +273,7 @@
     <string name="add_new_wallet">Add new wallet</string>
     <string name="note_optional_hint">Note (optional)…</string>
     <string name="create_new_wallet">Create new wallet</string>
-    <string name="initial_balance_vnd_label">Initial balance (VND)</string>
+    <string name="initial_balance_vnd_label">Initial balance (%1$s)</string>
     <string name="save_transaction">Save transaction</string>
     <string name="open">Open</string>
     <string name="bank_notification_listener_label">WiseKoin bank transaction tracking</string>

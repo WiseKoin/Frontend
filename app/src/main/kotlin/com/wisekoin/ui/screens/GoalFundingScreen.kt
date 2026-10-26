@@ -69,7 +69,8 @@ import com.wisekoin.R
 import com.wisekoin.data.model.GoalResponseDto
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.formatAmount
-import com.wisekoin.ui.components.formatVND
+import com.wisekoin.ui.components.formatCurrency
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.theme.BrandGreenDark
 import com.wisekoin.ui.theme.CandyBg
 import com.wisekoin.ui.theme.MintDark
@@ -93,6 +94,7 @@ fun GoalFundingScreen(
     goalViewModel: GoalViewModel,
     walletViewModel: WalletViewModel
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var amount by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var selectedWalletId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -117,7 +119,7 @@ fun GoalFundingScreen(
         }
     }
 
-    val parsedAmount = MoneyFormatter.parse(amount)
+    val parsedAmount = MoneyFormatter.parse(amount, currencyCode)
     LaunchedEffect(parsedAmount, walletState.wallets) {
         if (parsedAmount != null && parsedAmount > BigDecimal.ZERO &&
             (selectedWallet == null || selectedWallet.balance < parsedAmount)
@@ -180,7 +182,10 @@ fun GoalFundingScreen(
                     )
                     parsedAmount > goal.remainingAmount -> localError = GoalFundingError(
                         GoalFundingErrorType.CONTRIBUTION_LIMIT,
-                        context.getString(R.string.contribution_limit_message, goal.remainingAmount.formatVND())
+                        context.getString(
+                            R.string.contribution_limit_message,
+                            goal.remainingAmount.formatCurrency(currencyCode)
+                        )
                     )
                     selectedWallet == null -> localError = GoalFundingError(
                         GoalFundingErrorType.GENERAL,
@@ -191,8 +196,8 @@ fun GoalFundingScreen(
                         context.getString(
                             R.string.insufficient_balance_message,
                             selectedWallet.name,
-                            selectedWallet.balance.formatVND(),
-                            parsedAmount.formatVND()
+                            selectedWallet.balance.formatCurrency(currencyCode),
+                            parsedAmount.formatCurrency(currencyCode)
                         )
                     )
                     else -> goalViewModel.fundGoal(
@@ -269,6 +274,7 @@ private fun FundingLoadingBanner() {
 
 @Composable
 private fun FundingGoalBanner(goal: GoalResponseDto) {
+    val currencyCode = LocalCurrencyCode.current
     Card(
         modifier = Modifier.fillMaxWidth().neomorphicBox(cornerRadius = 24.dp),
         shape = RoundedCornerShape(24.dp),
@@ -285,7 +291,8 @@ private fun FundingGoalBanner(goal: GoalResponseDto) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "${goal.currentAmount.formatVND()} / ${goal.targetAmount.formatVND()}",
+                "${goal.currentAmount.formatCurrency(currencyCode)} / " +
+                    goal.targetAmount.formatCurrency(currencyCode),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White.copy(alpha = 0.9f),
@@ -316,20 +323,32 @@ private fun FundingAmountField(
     remainingAmount: BigDecimal?,
     onAmountChange: (String) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Column {
         Text(
-            stringResource(R.string.contribution_amount_label),
+            stringResource(R.string.contribution_amount_label, currencyCode),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = TextLight
         )
         if (remainingAmount != null && remainingAmount > BigDecimal.ZERO) {
             TextButton(
-                onClick = { onAmountChange(formatAmount(remainingAmount.toPlainString())) },
+                onClick = {
+                    onAmountChange(
+                        MoneyFormatter.format(
+                            remainingAmount,
+                            currencyCode,
+                            includeCurrencyCode = false
+                        )
+                    )
+                },
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    stringResource(R.string.use_remaining_amount, remainingAmount.formatVND()),
+                    stringResource(
+                        R.string.use_remaining_amount,
+                        remainingAmount.formatCurrency(currencyCode)
+                    ),
                     fontSize = 12.sp,
                     color = BrandGreenDark,
                     maxLines = 1,
@@ -345,11 +364,16 @@ private fun FundingAmountField(
             contentAlignment = Alignment.CenterStart
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("₫", color = PrimaryRed, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    currencyCode,
+                    color = PrimaryRed,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.size(10.dp))
                 BasicTextField(
                     value = amount,
-                    onValueChange = { onAmountChange(formatAmount(it)) },
+                    onValueChange = { onAmountChange(formatAmount(it, currencyCode)) },
                     textStyle = TextStyle(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Black,
@@ -357,7 +381,13 @@ private fun FundingAmountField(
                         textAlign = TextAlign.Start
                     ),
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                            KeyboardType.Number
+                        } else {
+                            KeyboardType.Decimal
+                        }
+                    ),
                     cursorBrush = SolidColor(PrimaryRed),
                     modifier = Modifier.weight(1f)
                 )
@@ -372,13 +402,16 @@ private fun FundingWalletField(
     wallets: List<WalletResponseDto>,
     onWalletSelect: (Long) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var expanded by remember { mutableStateOf(false) }
     SelectorItemRow(
         icon = Icons.Outlined.AccountBalanceWallet,
         iconBgColor = MintDark.copy(alpha = 0.35f),
         iconColor = BrandGreenDark,
         title = stringResource(R.string.wallet),
-        subtitle = selectedWallet?.let { "${it.name} · ${it.balance.formatVND()}" }
+        subtitle = selectedWallet?.let {
+            "${it.name} · ${it.balance.formatCurrency(currencyCode)}"
+        }
             ?: stringResource(R.string.no_wallet_available),
         trailingIcon = Icons.Outlined.KeyboardArrowDown,
         onClick = { if (wallets.isNotEmpty()) expanded = !expanded }
@@ -404,7 +437,7 @@ private fun FundingWalletField(
                         Text(wallet.type, fontSize = 12.sp, color = TextLight)
                     }
                     Text(
-                        wallet.balance.formatVND(),
+                        wallet.balance.formatCurrency(currencyCode),
                         modifier = Modifier.widthIn(max = 132.dp),
                         fontWeight = FontWeight.Bold,
                         color = TextDark,

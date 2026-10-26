@@ -3,6 +3,7 @@ package com.wisekoin.util
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 import java.text.ParsePosition
 import java.util.Currency
@@ -59,6 +60,30 @@ object MoneyFormatter {
         val digits = raw.filter(Char::isDigit)
         if (digits.isEmpty()) return ""
         return numberFormatter(locale, scale = 0).format(BigDecimal(digits))
+    }
+
+    fun formatInput(
+        raw: String,
+        currencyCode: String = DEFAULT_CURRENCY_CODE,
+        locale: Locale = Locale.getDefault()
+    ): String {
+        val scale = currencyScale(currencyCode)
+        if (scale == 0) return formatIntegralInput(raw, locale)
+
+        val decimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+        if (raw.none(Char::isDigit) && !raw.contains(decimalSeparator)) return ""
+        val decimalIndex = raw.indexOf(decimalSeparator)
+        val integerDigits = raw.substring(
+            startIndex = 0,
+            endIndex = decimalIndex.takeIf { it >= 0 } ?: raw.length
+        ).filter(Char::isDigit)
+        val integerPart = formatIntegralInput(integerDigits.ifEmpty { "0" }, locale)
+        if (decimalIndex < 0) return integerPart
+
+        val fractionalDigits = raw.substring(decimalIndex + 1)
+            .filter(Char::isDigit)
+            .take(scale)
+        return "$integerPart$decimalSeparator$fractionalDigits"
     }
 
     private fun numberFormatter(locale: Locale, scale: Int): DecimalFormat =

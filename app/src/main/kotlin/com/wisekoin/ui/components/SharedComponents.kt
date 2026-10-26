@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,9 +42,8 @@ import com.wisekoin.ui.theme.*
 import com.wisekoin.util.MoneyFormatter
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.LocalDate
 import java.time.DayOfWeek
-import java.time.Month
+import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -69,20 +69,28 @@ data class WeeklyExpense(
     val income: BigDecimal = BigDecimal.ZERO
 )
 
-fun BigDecimal.formatVND(): String {
-    return MoneyFormatter.format(this, MoneyFormatter.DEFAULT_CURRENCY_CODE)
+val LocalCurrencyCode = staticCompositionLocalOf {
+    MoneyFormatter.DEFAULT_CURRENCY_CODE
 }
 
-fun Long.formatVND(): String = BigDecimal.valueOf(this).formatVND()
+fun BigDecimal.formatCurrency(currencyCode: String): String {
+    return MoneyFormatter.format(this, currencyCode)
+}
 
-fun BigDecimal.formatStringVND(): String = MoneyFormatter.format(
+fun Long.formatCurrency(currencyCode: String): String =
+    BigDecimal.valueOf(this).formatCurrency(currencyCode)
+
+fun BigDecimal.formatCurrencyValue(currencyCode: String): String = MoneyFormatter.format(
     amount = this,
-    currencyCode = MoneyFormatter.DEFAULT_CURRENCY_CODE,
+    currencyCode = currencyCode,
     includeCurrencyCode = false
 )
 
-fun formatAmount(raw: String): String {
-    return MoneyFormatter.formatIntegralInput(raw)
+fun formatAmount(
+    raw: String,
+    currencyCode: String = MoneyFormatter.DEFAULT_CURRENCY_CODE
+): String {
+    return MoneyFormatter.formatInput(raw, currencyCode)
 }
 
 fun formatTransactionTime(isoString: String): String {
@@ -470,12 +478,9 @@ fun CashFlowCard(
                 }
             }
             isMonthly -> {
-                val monthNames = Month.entries.map {
-                    it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-                }
                 stats.map { stat ->
                     ChartBarItem(
-                        label = monthNames.getOrElse(stat.month - 1) { "" },
+                        label = stat.month.takeIf { it in 1..12 }?.toString().orEmpty(),
                         income = stat.totalIncome ?: BigDecimal.ZERO,
                         expense = stat.totalExpense ?: BigDecimal.ZERO
                     )
@@ -494,10 +499,9 @@ fun CashFlowCard(
                 }
             }
             else -> {
-                val monthNames = Month.entries.map {
-                    it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                (1..12).map { month ->
+                    ChartBarItem(month.toString(), BigDecimal.ZERO, BigDecimal.ZERO)
                 }
-                monthNames.map { ChartBarItem(it, BigDecimal.ZERO, BigDecimal.ZERO) }
             }
         }
     }

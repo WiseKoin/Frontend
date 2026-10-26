@@ -37,7 +37,8 @@ import com.wisekoin.data.model.CategoryResponse
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.formatAmount
-import com.wisekoin.ui.components.formatVND
+import com.wisekoin.ui.components.formatCurrency
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.theme.*
 import com.wisekoin.util.MoneyFormatter
@@ -95,6 +96,7 @@ fun DebtCardItem(
     onEdit: () -> Unit,
     onPaid: () -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,7 +157,7 @@ fun DebtCardItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    debt.remainingAmount.formatVND(),
+                    debt.remainingAmount.formatCurrency(currencyCode),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
@@ -199,10 +201,17 @@ internal fun EditDebtDialog(
     onDismiss: () -> Unit,
     onSave: (com.wisekoin.data.model.DebtRequest) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var counterpartName by rememberSaveable(debt.id) { mutableStateOf(debt.counterpartName) }
     var type by rememberSaveable(debt.id) { mutableStateOf(debt.type) }
-    var amount by rememberSaveable(debt.id) {
-        mutableStateOf(MoneyFormatter.format(debt.totalAmount, includeCurrencyCode = false))
+    var amount by rememberSaveable(debt.id, currencyCode) {
+        mutableStateOf(
+            MoneyFormatter.format(
+                debt.totalAmount,
+                currencyCode,
+                includeCurrencyCode = false
+            )
+        )
     }
     var dueDate by rememberSaveable(debt.id) { mutableStateOf(debt.dueDate.orEmpty()) }
     var note by rememberSaveable(debt.id) { mutableStateOf(debt.note.orEmpty()) }
@@ -245,12 +254,19 @@ internal fun EditDebtDialog(
                 }
                 OutlinedTextField(
                     value = amount,
-                    onValueChange = { amount = formatAmount(it); validationMessage = null },
-                    label = { Text(stringResource(R.string.total_amount_vnd)) },
+                    onValueChange = {
+                        amount = formatAmount(it, currencyCode)
+                        validationMessage = null
+                    },
+                    label = { Text(stringResource(R.string.total_amount_vnd, currencyCode)) },
                     singleLine = true,
                     enabled = !isSubmitting,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                            androidx.compose.ui.text.input.KeyboardType.Number
+                        } else {
+                            androidx.compose.ui.text.input.KeyboardType.Decimal
+                        }
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -278,7 +294,7 @@ internal fun EditDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val parsedAmount = MoneyFormatter.parse(amount)
+                    val parsedAmount = MoneyFormatter.parse(amount, currencyCode)
                     val parsedDate = dueDate.takeIf(String::isNotBlank)?.let {
                         runCatching { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
                     }
@@ -329,6 +345,7 @@ internal fun RepayDebtDialog(
     onDismiss: () -> Unit,
     onRepay: (BigDecimal, Long, Long) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var amount by rememberSaveable(debt.id) { mutableStateOf("") }
     var selectedWalletId by rememberSaveable(debt.id) { mutableStateOf<Long?>(null) }
     var selectedCategoryId by rememberSaveable(debt.id) { mutableStateOf<Long?>(null) }
@@ -340,22 +357,29 @@ internal fun RepayDebtDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    stringResource(R.string.remaining_debt, debt.remainingAmount.formatVND()),
+                    stringResource(
+                        R.string.remaining_debt,
+                        debt.remainingAmount.formatCurrency(currencyCode)
+                    ),
                     color = TextLight,
                     fontSize = 13.sp
                 )
                 OutlinedTextField(
                     value = amount,
                     onValueChange = {
-                        amount = formatAmount(it)
+                        amount = formatAmount(it, currencyCode)
                         validationMessage = null
                     },
-                    label = { Text(stringResource(R.string.amount_vnd)) },
+                    label = { Text(stringResource(R.string.amount_vnd, currencyCode)) },
                     singleLine = true,
                     enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                            androidx.compose.ui.text.input.KeyboardType.Number
+                        } else {
+                            androidx.compose.ui.text.input.KeyboardType.Decimal
+                        }
                     )
                 )
                 RepaymentSelector(
@@ -368,7 +392,9 @@ internal fun RepayDebtDialog(
                         }
                     ),
                     selectedId = selectedWalletId,
-                    options = wallets.map { it.id to "${it.name} · ${it.balance.formatVND()}" },
+                    options = wallets.map {
+                        it.id to "${it.name} · ${it.balance.formatCurrency(currencyCode)}"
+                    },
                     leadingIcon = {
                         Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null)
                     },
@@ -418,7 +444,7 @@ internal fun RepayDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val parsedAmount = MoneyFormatter.parse(amount)
+                    val parsedAmount = MoneyFormatter.parse(amount, currencyCode)
                     when {
                         parsedAmount == null || parsedAmount <= BigDecimal.ZERO ->
                             validationMessage = R.string.invalid_repayment_amount

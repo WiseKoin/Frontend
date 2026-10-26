@@ -47,6 +47,7 @@ import com.wisekoin.data.model.WalletRequest
 import com.wisekoin.ui.components.AppTopBar
 import com.wisekoin.ui.components.NetworkErrorBanner
 import com.wisekoin.ui.components.formatAmount
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.components.formatTransactionDate
 import com.wisekoin.ui.theme.*
 import com.wisekoin.util.MoneyFormatter
@@ -72,6 +73,7 @@ internal fun AmountSection(
     onAmountChange: (String) -> Unit,
     onClose: () -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val isDebt = type in listOf("Lend", "Borrow")
     val activeColor = if (isDebt) PrimaryRed else BrandGreenDark
 
@@ -85,7 +87,12 @@ internal fun AmountSection(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             AmountHeader(type, onTypeSelect, activeColor, onClose)
             Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.amount_vnd), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextLight)
+            Text(
+                stringResource(R.string.amount_vnd, currencyCode),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextLight
+            )
             Spacer(Modifier.height(10.dp))
             AmountInputDisplay(amount, onAmountChange, activeColor)
         }
@@ -157,6 +164,7 @@ internal fun AmountInputDisplay(
     onAmountChange: (String) -> Unit,
     accentColor: Color
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,11 +173,18 @@ internal fun AmountInputDisplay(
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("₫", color = accentColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(
+                currencyCode,
+                color = accentColor,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.width(10.dp))
             BasicTextField(
                 value = amount,
-                onValueChange = { newValue -> onAmountChange(formatAmount(newValue)) },
+                onValueChange = { newValue ->
+                    onAmountChange(formatAmount(newValue, currencyCode))
+                },
                 textStyle = TextStyle(
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
@@ -177,7 +192,13 @@ internal fun AmountInputDisplay(
                     textAlign = TextAlign.Start
                 ),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                        KeyboardType.Number
+                    } else {
+                        KeyboardType.Decimal
+                    }
+                ),
                 cursorBrush = SolidColor(accentColor)
             )
         }
@@ -802,6 +823,7 @@ internal fun CreateWalletDialog(
     onDismiss: () -> Unit,
     onWalletCreated: (Long, String) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     var walletName by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("CASH") }
     var initialBalance by remember { mutableStateOf("") }
@@ -850,11 +872,21 @@ internal fun CreateWalletDialog(
                 }
                 OutlinedTextField(
                     value = initialBalance,
-                    onValueChange = { initialBalance = it },
-                    label = { Text(stringResource(R.string.initial_balance_vnd_label)) },
+                    onValueChange = {
+                        initialBalance = formatAmount(it, currencyCode)
+                    },
+                    label = {
+                        Text(stringResource(R.string.initial_balance_vnd_label, currencyCode))
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                            KeyboardType.Number
+                        } else {
+                            KeyboardType.Decimal
+                        }
+                    )
                 )
             }
         },
@@ -866,7 +898,8 @@ internal fun CreateWalletDialog(
                         Toast.makeText(context, "Please enter a wallet name.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    val balance = MoneyFormatter.parse(initialBalance) ?: BigDecimal.ZERO
+                    val balance = MoneyFormatter.parse(initialBalance, currencyCode)
+                        ?: BigDecimal.ZERO
                     transactionEntryViewModel.createWallet(
                         request = WalletRequest(
                             name = walletName.trim(),

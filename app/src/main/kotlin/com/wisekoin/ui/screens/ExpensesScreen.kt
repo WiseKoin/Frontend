@@ -71,6 +71,7 @@ fun ExpensesScreen(
     categoryViewModel: CategoryViewModel,
     isLoggedIn: Boolean = false
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val state by walletViewModel.uiState.collectAsStateWithLifecycle()
     val categoryUiState by categoryViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -86,8 +87,6 @@ fun ExpensesScreen(
     LaunchedEffect(isLoggedIn, selectedPeriod) {
         if (isLoggedIn) walletViewModel.loadTransactionReport(selectedPeriod)
     }
-
-    val displayBalance = state.totalBalance.formatVND()
 
     val now = LocalDate.now()
     val reportTransactions = state.reportTransactions
@@ -118,7 +117,7 @@ fun ExpensesScreen(
                 id = tx.id.toString(),
                 title = tx.note ?: tx.category?.name ?: tx.goal?.name ?: "Transfer",
                 category = tx.category?.name ?: tx.goal?.let { "Savings goal" } ?: "Transfer",
-                amount = "-${tx.amount.formatStringVND()}đ",
+                amount = "-${tx.amount.formatCurrencyValue(currencyCode)} $currencyCode",
                 isExpense = true,
                 time = formatTransactionTime(tx.transactionDate),
                 iconBgColor = PeachDark
@@ -141,7 +140,7 @@ fun ExpensesScreen(
             .fillMaxSize()
             .background(CandyBg)
             .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Text(stringResource(R.string.expenses_patterns), fontSize = 28.sp, fontWeight = FontWeight.Black, color = TextDark)
@@ -248,7 +247,7 @@ fun ExpensesScreen(
 
         items(filteredList, key = { it.id }) { item ->
             TransactionRowItem(item)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
 
         item {

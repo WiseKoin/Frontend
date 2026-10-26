@@ -20,11 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.R
 import com.wisekoin.data.model.GoalResponseDto
+import com.wisekoin.ui.components.LocalCurrencyCode
 import com.wisekoin.ui.theme.*
 import com.wisekoin.util.MoneyFormatter
 import com.wisekoin.viewmodel.GoalViewModel
@@ -37,6 +40,7 @@ fun SavingsGoalsScreen(
     onAddNewGoal: () -> Unit,
     onGoalClick: (Long) -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val uiState by goalViewModel.uiState.collectAsStateWithLifecycle()
     var goalPendingDeletion by remember { mutableStateOf<GoalResponseDto?>(null) }
 
@@ -139,7 +143,7 @@ fun SavingsGoalsScreen(
                     stringResource(
                         com.wisekoin.R.string.delete_goal_confirmation,
                         goal.name,
-                        goal.currentAmount.formatSavingsVND()
+                        goal.currentAmount.formatSavingsCurrency(currencyCode)
                     )
                 )
             },
@@ -218,6 +222,7 @@ private fun SwipeableGoalItem(
 
 @Composable
 private fun TotalSavedBanner(totalSaved: BigDecimal) {
+    val currencyCode = LocalCurrencyCode.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,7 +232,12 @@ private fun TotalSavedBanner(totalSaved: BigDecimal) {
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(stringResource(R.string.total_amount_saved).uppercase(), color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(totalSaved.formatSavingsVND(), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
+            Text(
+                totalSaved.formatSavingsCurrency(currencyCode),
+                color = Color.White,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black
+            )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = Color.White)
@@ -316,6 +326,7 @@ fun GoalCardItem(
     goal: GoalResponseDto,
     onClick: () -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -330,7 +341,10 @@ fun GoalCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(12.dp)
@@ -338,9 +352,27 @@ fun GoalCardItem(
                             .background(goal.goalColor())
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(goal.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Text(
+                        text = goal.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-                Text(goal.deadlineText(), fontSize = 12.sp, color = TextLight, fontWeight = FontWeight.Medium)
+                Text(
+                    text = goal.deadlineText(),
+                    fontSize = 12.sp,
+                    color = TextLight,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .widthIn(min = 88.dp)
+                        .padding(start = 12.dp)
+                )
             }
 
             Spacer(Modifier.height(12.dp))
@@ -350,7 +382,8 @@ fun GoalCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${goal.currentAmount.formatCompactVND()} / ${goal.targetAmount.formatCompactVND()} VND",
+                    "${goal.currentAmount.formatCompactCurrency()} / " +
+                        "${goal.targetAmount.formatCompactCurrency()} $currencyCode",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
@@ -396,7 +429,7 @@ fun GoalResponseDto.deadlineText(): String {
     }
 }
 
-fun BigDecimal.formatCompactVND(): String {
+fun BigDecimal.formatCompactCurrency(): String {
     return when {
         this >= BigDecimal(1_000_000_000L) -> {
             val value = this.divide(BigDecimal(1_000_000_000L), 1, RoundingMode.HALF_UP)
@@ -414,6 +447,6 @@ fun BigDecimal.formatCompactVND(): String {
     }
 }
 
-fun BigDecimal.formatSavingsVND(): String {
-    return MoneyFormatter.format(this)
+fun BigDecimal.formatSavingsCurrency(currencyCode: String): String {
+    return MoneyFormatter.format(this, currencyCode)
 }

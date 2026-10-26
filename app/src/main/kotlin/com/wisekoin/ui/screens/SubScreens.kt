@@ -1,6 +1,8 @@
 package com.wisekoin.ui.screens
 
 import com.wisekoin.ui.components.NetworkErrorBanner
+import com.wisekoin.ui.components.LocalCurrencyCode
+import com.wisekoin.ui.components.formatAmount
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -637,6 +639,7 @@ fun CreateGoalScreen(
     onGoalCreated: () -> Unit,
     goalViewModel: GoalViewModel
 ) {
+    val currencyCode = LocalCurrencyCode.current
     val context = LocalContext.current
     val uiState by goalViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -674,7 +677,7 @@ fun CreateGoalScreen(
                     Toast.makeText(context, "Please enter a goal title.", Toast.LENGTH_SHORT).show()
                     return@CreateGoalContent
                 }
-                val parsedAmount = MoneyFormatter.parse(targetAmount)
+                val parsedAmount = MoneyFormatter.parse(targetAmount, currencyCode)
                 if (parsedAmount == null || parsedAmount <= BigDecimal.ZERO) {
                     Toast.makeText(context, "Please enter a valid target amount.", Toast.LENGTH_SHORT).show()
                     return@CreateGoalContent
@@ -728,6 +731,7 @@ private fun CreateGoalContent(
     isSubmitting: Boolean,
     onSubmit: () -> Unit
 ) {
+    val currencyCode = LocalCurrencyCode.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -745,10 +749,18 @@ private fun CreateGoalContent(
         )
         OutlinedTextField(
             value = targetAmount,
-            onValueChange = onTargetAmountChange,
-            label = { Text(stringResource(R.string.target_amount_vnd)) },
+            onValueChange = {
+                onTargetAmountChange(formatAmount(it, currencyCode))
+            },
+            label = { Text(stringResource(R.string.target_amount_vnd, currencyCode)) },
             placeholder = { Text(stringResource(R.string.target_amount_example)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
+                    KeyboardType.Number
+                } else {
+                    KeyboardType.Decimal
+                }
+            ),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )

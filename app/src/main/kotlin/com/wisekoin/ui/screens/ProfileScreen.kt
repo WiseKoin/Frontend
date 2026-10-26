@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpCenter
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Edit
@@ -358,7 +359,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 PreferenceItem(
-                    title = stringResource(R.string.bank_notification_tracking),
+                    title = "Bank notification",
                     icon = Icons.Default.NotificationsActive,
                     iconTint = Color(0xFF666000),
                     onClick = onNotificationsClick
@@ -368,7 +369,7 @@ fun ProfileScreen(
 
             PreferenceItem(
                 title = stringResource(R.string.help_center),
-                icon = Icons.Default.HelpCenter,
+                icon = Icons.AutoMirrored.Filled.HelpCenter,
                 iconTint = WiseKoinTheme.colors.Outline,
                 onClick = onHelpCenterClick
             )
@@ -551,8 +552,16 @@ fun ProfileScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(com.wisekoin.R.string.base_currency_description))
                     currencies.chunked(3).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { currency ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            row.forEachIndexed { index, currency ->
+                                if (index > 0) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+
                                 FilterChip(
                                     selected = selectedCurrency == currency,
                                     onClick = { selectedCurrency = currency },

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="$description$" />
+    <meta name="theme-color" content="#f4f1e8" />
+    <title>$pagetitle$ | WiseKoin</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body class="legal-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header" data-header>
+      <div class="nav-shell">
+        <a class="brand" href="index.html" aria-label="WiseKoin home">
+          <span class="brand-mark" aria-hidden="true"><span></span></span>
+          <span>WiseKoin</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" data-menu-toggle>
+          <span class="sr-only">Open navigation</span><span></span><span></span>
+        </button>
+        <nav id="primary-navigation" class="primary-nav" aria-label="Primary navigation" data-menu>
+          <a href="index.html#features">Features</a>
+          <a href="index.html#how-it-works">How it works</a>
+          <a href="terms.html" $termscurrent$>Terms</a>
+          <a href="privacy.html" $privacycurrent$>Privacy</a>
+          <a class="nav-cta" href="index.html#tour">Explore the app</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="legal-top">
+        <div class="legal-top-inner">
+          <a class="legal-back" href="index.html">← Back to WiseKoin</a>
+          <p class="legal-label">Legal · $shorttitle$</p>
+          <p>$intro$</p>
+        </div>
+      </section>
+      <aside class="draft-banner" aria-label="Draft publication warning">
+        <div>
+          <p><strong>Draft document</strong> Unresolved bracketed items require operator decisions and qualified legal review.</p>
+          <p>Do not publish as final yet.</p>
+        </div>
+      </aside>
+
+      <div class="legal-layout">
+        <aside class="legal-toc" aria-label="On this page">
+          <p>On this page</p>
+          <nav data-legal-toc></nav>
+        </aside>
+        <article class="legal-document">
+$body$
+          <p class="legal-updated">Source audit prepared October 26, 2026. Review against the release candidate before publication.</p>
+        </article>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="section-shell footer-bottom">
+        <p>© <span data-current-year>2026</span> WiseKoin. All rights reserved.</p>
+        <p><a href="terms.html">Terms of Service</a> · <a href="privacy.html">Privacy Policy</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

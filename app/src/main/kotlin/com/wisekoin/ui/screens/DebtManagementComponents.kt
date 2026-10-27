@@ -5,9 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -28,12 +30,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wisekoin.R
 import com.wisekoin.data.model.CategoryResponse
+import com.wisekoin.data.model.DebtRequest
 import com.wisekoin.data.model.DebtResponse
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.formatAmount
@@ -97,97 +101,151 @@ fun DebtCardItem(
     onPaid: () -> Unit
 ) {
     val currencyCode = LocalCurrencyCode.current
+
+    val dueDateText = remember(debt.dueDate) {
+        debt.dueDate?.let { rawDate ->
+            runCatching {
+                LocalDate.parse(rawDate, DateTimeFormatter.ISO_LOCAL_DATE)
+                    .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            }.getOrElse { rawDate }
+        } ?: "No due date"
+    }
+
+    val isCompleted = debt.status == "COMPLETED"
+    val isOverdue = debt.status == "OVERDUE"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onEdit)
-            .neomorphicBox(cornerRadius = 20.dp),
-        shape = RoundedCornerShape(20.dp),
+            .neomorphicBox(cornerRadius = 18.dp)
+            .clickable(role = Role.Button, onClick = onEdit),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = CandyBg)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(if (isLent) MintDark.copy(alpha = 0.2f) else PeachDark.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (isLent) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                        contentDescription = null,
-                        tint = if (isLent) MintDark else PrimaryRed
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isLent) MintDark.copy(alpha = 0.2f)
+                        else PeachDark.copy(alpha = 0.3f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isLent) {
+                        Icons.Default.ArrowUpward
+                    } else {
+                        Icons.Default.ArrowDownward
+                    },
+                    contentDescription = null,
+                    tint = if (isLent) MintDark else PrimaryRed,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = debt.counterpartName,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = dueDateText,
+                    fontSize = 12.sp,
+                    color = if (isOverdue) PrimaryRed else TextLight,
+                    maxLines = 1
+                )
+
+                debt.note?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text = it,
+                        fontSize = 11.sp,
+                        color = TextLight,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(debt.counterpartName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    val dueDateText = debt.dueDate?.let {
-                        try {
-                            val date = LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE)
-                            date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-                        } catch (e: Exception) { it }
-                    } ?: "No due date"
-                    val noteText = debt.note?.takeIf { it.isNotEmpty() } ?: ""
-                    Text("$noteText • ${stringResource(R.string.due_value, dueDateText)}", fontSize = 12.sp, color = TextLight)
-                    if (debt.status == "OVERDUE") {
-                        Surface(
-                            color = PrimaryRed.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.overdue),
-                                color = PrimaryRed,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Text(
-                    debt.remainingAmount.formatCurrency(currencyCode),
-                    fontSize = 16.sp,
+                    text = debt.remainingAmount.formatCurrency(currencyCode),
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextDark
+                    color = TextDark,
+                    maxLines = 1
                 )
-                Spacer(Modifier.height(4.dp))
-                if (debt.status != "COMPLETED") {
-                    Button(
-                        onClick = onPaid,
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MintDark)
+
+                if (isCompleted) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MintDark.copy(alpha = 0.25f)
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextDark)
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.paid), fontSize = 11.sp, color = TextDark, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = 10.dp,
+                                vertical = 5.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = TextDark,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.settled),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextDark
+                            )
+                        }
                     }
                 } else {
-                    Text(
-                        stringResource(R.string.settled),
-                        fontSize = 11.sp,
-                        color = TextLight,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = onPaid,
+                        modifier = Modifier.height(32.dp),
+                        shape = RoundedCornerShape(9.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MintDark
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = TextDark,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.paid),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextDark
+                        )
+                    }
                 }
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_debt),
-                    tint = TextLight,
-                    modifier = Modifier.padding(top = 4.dp).size(16.dp)
-                )
             }
         }
     }
@@ -199,7 +257,7 @@ internal fun EditDebtDialog(
     isSubmitting: Boolean,
     errorMessage: String?,
     onDismiss: () -> Unit,
-    onSave: (com.wisekoin.data.model.DebtRequest) -> Unit
+    onSave: (DebtRequest) -> Unit
 ) {
     val currencyCode = LocalCurrencyCode.current
     var counterpartName by rememberSaveable(debt.id) { mutableStateOf(debt.counterpartName) }
@@ -222,7 +280,7 @@ internal fun EditDebtDialog(
         title = { Text(stringResource(R.string.edit_debt), fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(
@@ -261,11 +319,11 @@ internal fun EditDebtDialog(
                     label = { Text(stringResource(R.string.total_amount_vnd, currencyCode)) },
                     singleLine = true,
                     enabled = !isSubmitting,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
-                            androidx.compose.ui.text.input.KeyboardType.Number
+                            KeyboardType.Number
                         } else {
-                            androidx.compose.ui.text.input.KeyboardType.Decimal
+                            KeyboardType.Decimal
                         }
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -307,7 +365,7 @@ internal fun EditDebtDialog(
                     }
                     if (validationMessage == null) {
                         onSave(
-                            com.wisekoin.data.model.DebtRequest(
+                            DebtRequest(
                                 counterpartName = counterpartName.trim(),
                                 type = type,
                                 totalAmount = parsedAmount!!,
@@ -374,11 +432,11 @@ internal fun RepayDebtDialog(
                     singleLine = true,
                     enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = if (MoneyFormatter.currencyScale(currencyCode) == 0) {
-                            androidx.compose.ui.text.input.KeyboardType.Number
+                            KeyboardType.Number
                         } else {
-                            androidx.compose.ui.text.input.KeyboardType.Decimal
+                            KeyboardType.Decimal
                         }
                     )
                 )

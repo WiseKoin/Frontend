@@ -31,6 +31,7 @@ import com.wisekoin.R
 import com.wisekoin.data.model.WalletResponseDto
 import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.TransactionTime
 import com.wisekoin.viewmodel.WalletViewModel
 import java.math.BigDecimal
 
@@ -83,7 +84,7 @@ fun OverviewScreen(
                     "+${tx.amount.formatCurrencyValue(currencyCode)} $currencyCode"
                 },
                 isExpense = isExpense,
-                time = formatTransactionTime(tx.transactionDate),
+                time = TransactionTime.formatDisplayDate(tx.transactionDate),
                 iconBgColor = if (isExpense) PeachDark else MintDark
             )
         }

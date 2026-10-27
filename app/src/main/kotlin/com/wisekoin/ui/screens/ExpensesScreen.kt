@@ -29,6 +29,7 @@ import com.wisekoin.data.model.TransactionResponseDto
 import com.wisekoin.R
 import com.wisekoin.ui.components.*
 import com.wisekoin.ui.theme.*
+import com.wisekoin.util.TransactionTime
 import com.wisekoin.viewmodel.CategoryViewModel
 import com.wisekoin.viewmodel.TransactionReportPeriod
 import com.wisekoin.viewmodel.WalletViewModel
@@ -119,7 +120,7 @@ fun ExpensesScreen(
                 category = tx.category?.name ?: tx.goal?.let { "Savings goal" } ?: "Transfer",
                 amount = "-${tx.amount.formatCurrencyValue(currencyCode)} $currencyCode",
                 isExpense = true,
-                time = formatTransactionTime(tx.transactionDate),
+                time = TransactionTime.formatDisplayDate(tx.transactionDate),
                 iconBgColor = PeachDark
             )
         }

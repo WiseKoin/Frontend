@@ -36,7 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -208,8 +210,13 @@ fun ProfileScreen(
                 modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
             )
 
+            var anchorWidth by remember { mutableIntStateOf(0) }
+            val density = LocalDensity.current
+
             // Bọc PreferenceItem và DropdownMenu trong 1 Box làm điểm neo (anchor)
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { anchorWidth = it.width }) {
                 PreferenceItem(
                     title = "Account Settings",
                     icon = Icons.Default.ManageAccounts,
@@ -220,11 +227,10 @@ fun ProfileScreen(
                 DropdownMenu(
                     expanded = showAccountMenu,
                     onDismissRequest = { showAccountMenu = false },
-                    // Bo góc menu cho hài hòa với giao diện
                     shape = RoundedCornerShape(18.dp),
                     containerColor = WiseKoinTheme.colors.Surface,
                     modifier = Modifier
-                        .fillMaxWidth(0.75f) // Độ rộng vừa vặn với màn hình
+                        .width(with(density) { anchorWidth.toDp() })
                         .border(
                             width = 1.dp,
                             color = Color.White.copy(alpha = 0.8f),

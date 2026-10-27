@@ -80,6 +80,12 @@
     <string name="security_action_notice">Sensitive account changes require an email verification code.</string>
     <string name="change_password">Change password</string>
     <string name="delete_account">Delete account</string>
+    <string name="legal">Legal</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="opens_in_browser">Opens in browser</string>
+    <string name="terms_of_service_url" translatable="false">https://wisekoin.pages.dev/terms.html</string>
+    <string name="privacy_policy_url" translatable="false">https://wisekoin.pages.dev/privacy.html</string>
     <string name="current_password">Current password</string>
     <string name="new_password">New password</string>
     <string name="confirm_new_password">Confirm new password</string>

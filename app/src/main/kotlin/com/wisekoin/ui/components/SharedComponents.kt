@@ -93,18 +93,6 @@ fun formatAmount(
     return MoneyFormatter.formatInput(raw, currencyCode)
 }
 
-fun formatTransactionTime(isoString: String): String {
-    return try {
-        val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-        val localDateTime = java.time.LocalDateTime.parse(isoString, inputFormatter)
-        val dateStr = localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))
-        val timeStr = localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
-        "$dateStr, $timeStr"
-    } catch (e: Exception) {
-        isoString
-    }
-}
-
 fun formatTransactionDate(dateMillis: Long?, hour: Int, minute: Int): String {
     val base = if (dateMillis != null) {
         LocalDate.ofEpochDay(dateMillis / 86400000)

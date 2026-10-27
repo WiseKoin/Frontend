@@ -18,9 +18,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LockReset
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -66,6 +71,10 @@ fun AccountSecurityScreen(
     onChangePassword: () -> Unit,
     onDeleteAccount: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+    val termsOfServiceUrl = stringResource(R.string.terms_of_service_url)
+    val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
+
     SecurityScaffold(title = stringResource(R.string.account_security), onBack = onBack) {
         Text(
             text = stringResource(R.string.account_activity),
@@ -114,6 +123,48 @@ fun AccountSecurityScreen(
             Spacer(Modifier.padding(horizontal = 4.dp))
             Text(stringResource(R.string.delete_account))
         }
+
+        Text(
+            text = stringResource(R.string.legal),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = TextDark
+        )
+        LegalLinkButton(
+            text = stringResource(R.string.terms_of_service),
+            icon = Icons.Default.Description,
+            onClick = { uriHandler.openUri(termsOfServiceUrl) }
+        )
+        LegalLinkButton(
+            text = stringResource(R.string.privacy_policy),
+            icon = Icons.Default.PrivacyTip,
+            onClick = { uriHandler.openUri(privacyPolicyUrl) }
+        )
+    }
+}
+
+@Composable
+private fun LegalLinkButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color.White.copy(alpha = 0.7f),
+            contentColor = TextDark
+        )
+    ) {
+        Icon(icon, contentDescription = null)
+        Spacer(Modifier.padding(horizontal = 6.dp))
+        Text(text, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+        Icon(
+            Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = stringResource(R.string.opens_in_browser)
+        )
     }
 }
 
